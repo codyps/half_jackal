@@ -14,8 +14,8 @@ TARGET = mctrl
 SRC  = main.c
 SRC += frame_async.c
 SRC += error_led.c
-SRC += ../muc/motor.c
-SRC += ../muc/pid.c
+SRC += muc/motor.c
+SRC += muc/pid.c
 
 ASRC =
 OPT = s
@@ -37,11 +37,11 @@ DEBUG = stabs
 # gnu99 - c99 plus GCC extensions
 CSTANDARD = -std=gnu99
 
-VERSION := $(shell $(srcdir)/../setlocalversion)
+VERSION := $(shell $(srcdir)/muc/setlocalversion)
 CDEFS = -DVERSION="\"$(TARGET)$(VERSION)\""
 
 # Place -I options here
-CINCS = -I../muc
+CINCS = -I./muc
 CLINK = -Wl,--as-needed
 
 CDEBUG = -g$(DEBUG)
