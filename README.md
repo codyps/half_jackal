@@ -1,24 +1,14 @@
-# AVRBITS #
+# half jackal #
 
-Various subprojects for AVR's sharing a small library of common code.
+The setup is like so: 1 Arduino drives _2_ of the following
+motor+motor controller setups. Motor with dual phase encoders is attached
+to a "simple h-bridge". This gives us 2 encoder signals and current
+information for each motor.
 
- *  mctrl - motor control. arduino. HDLC-like framing over USART. Interrupt
-    driven. buffers packets in statically allocated space.
+Motor speed is set via the usart interface, packets are framed in a hdlc
+like manner, and CRC-CCITT protected.
 
- *  arr - Code for the arduino (atmega328p), attempting to get usart message
-    parsing and servo control functioning.
+As this is indended to drive half of the motors on a robot, the same speed
+is desired on both the attached motors (it is driving one side). A second
+(identical) setup drives the opposite side (left vs right).
 
- *  lline - old linefollower code for an atiny861 
-
- *  heavy - a atmega644p with attached magnetic card reader and (eventually)
-    lcd display.
-
- *  common - some code that is useful in general. 
-    * async adc
-    * macro generated queuing
-    * motor control
-    * servo control
-    * i2c noblock - currently borked for unknown reasons, bus is unable to 
-      leave the transmitting state for the stop state
-    * spi noblock - needs to be reworked 
-    * spi blocking - limited and unused presently, useful @ high spi clocks.
