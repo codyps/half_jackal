@@ -5,7 +5,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#include "common.h"
+#include "muc.h"
 #include "ds/circ_buf.h"
 
 #include "proto.h"

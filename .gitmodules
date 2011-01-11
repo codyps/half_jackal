@@ -1,0 +1,3 @@
+[submodule "muc"]
+	path = muc
+	url = git@github.com:jmesmon/libmuc.git

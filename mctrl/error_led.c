@@ -1,6 +1,6 @@
 #include <avr/io.h>
 #include <util/delay.h>
-#include "common.h"
+#include "muc.h"
 
 #define DELAY_TIME 250
 #define LED_PIN PB5

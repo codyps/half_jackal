@@ -14,8 +14,8 @@ TARGET = mctrl
 SRC  = main.c
 SRC += frame_async.c
 SRC += error_led.c
-SRC += ../common/motor.c
-SRC += ../common/pid.c
+SRC += ../muc/motor.c
+SRC += ../muc/pid.c
 
 ASRC =
 OPT = s
@@ -41,7 +41,7 @@ VERSION := $(shell $(srcdir)/../setlocalversion)
 CDEFS = -DVERSION="\"$(TARGET)$(VERSION)\""
 
 # Place -I options here
-CINCS = -I../common
+CINCS = -I../muc
 CLINK = -Wl,--as-needed
 
 CDEBUG = -g$(DEBUG)

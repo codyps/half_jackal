@@ -7,7 +7,7 @@
 #include "error_led.h"
 #include "frame_async.h"
 
-#include "common.h"
+#include "muc.h"
 
 __attribute__((noreturn))
 void main(void)
