@@ -8,7 +8,7 @@
 #include "muc.h"
 #include "ds/circ_buf.h"
 
-#include "proto.h"
+#include "../frame_proto.h"
 
 /* 0x7f => 0x7d, 0x5f
  * 0x7e => 0x7d, 0x5e
