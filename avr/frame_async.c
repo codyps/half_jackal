@@ -4,6 +4,7 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <util/crc16.h>
 
 #include "muc.h"
 #include "ds/circ_buf.h"
@@ -435,11 +436,22 @@ TX_ISR()
  *     frame_send
  */
 static bool frame_start_flag;
+#ifdef FRAME_CRC
+static uint16_t frame_crc_temp;
+#endif
 void frame_start(void)
 {
-	if (CIRC_SPACE(tx.head, tx.tail, sizeof(tx.p_idx))) {
+	uint8_t needed_bytes = 1;
+#ifdef FRAME_CRC
+	needed_bytes += 2
+#endif
+
+	if (CIRC_SPACE(tx.head, tx.tail, sizeof(tx.p_idx)) > needed_bytes) {
 		frame_start_flag = true;
 		tx.p_idx[CIRC_NEXT(tx.head,sizeof(tx.p_idx))] = tx.p_idx[tx.head];
+#ifdef FRAME_CRC
+		frame_crc_temp = 0xffff;
+#endif
 	}
 }
 
@@ -451,12 +463,21 @@ void frame_append_u8(uint8_t x)
 	uint8_t next_head = (tx.head + 1) & (sizeof(tx.p_idx) - 1);
 	uint8_t next_b_head = tx.p_idx[next_head];
 
+	uint8_t needed_bytes = 1;
+#ifdef FRAME_CRC
+	needed_bytes += 2;
+#endif
 	/* Can we advance our packet bytes? if not, drop packet */
-	if (CIRC_SPACE(next_b_head, tx.p_idx[tx.tail], sizeof(tx.buf)) < 1) {
+	if (CIRC_SPACE(next_b_head, tx.p_idx[tx.tail], sizeof(tx.buf))
+			< needed_bytes) {
 		tx.p_idx[next_head] = tx.p_idx[tx.head];
 		frame_start_flag = false;
 		return;
 	}
+
+#ifdef FRAME_CRC
+	frame_crc_temp = _crc_ccitt_update(frame_crc_temp, x);
+#endif
 
 	tx.buf[next_b_head] = x;
 	CIRC_NEXT_EQ(tx.p_idx[next_head], sizeof(tx.buf));
@@ -470,23 +491,49 @@ void frame_append_u16(uint16_t x)
 	uint8_t next_head = (tx.head + 1) & (sizeof(tx.p_idx) - 1);
 	uint8_t next_b_head = tx.p_idx[next_head];
 
+	uint8_t needed_bytes = 2;
+#ifdef FRAME_CRC
+	needed_bytes += 2;
+#endif
+
 	/* Can we advance our packet bytes? if not, drop packet */
-	if (CIRC_SPACE(next_b_head, tx.p_idx[tx.tail], sizeof(tx.buf)) < 2) {
+	if (CIRC_SPACE(next_b_head, tx.p_idx[tx.tail], sizeof(tx.buf))
+			< needed_bytes) {
 		tx.p_idx[next_head] = tx.p_idx[tx.head];
 		frame_start_flag = false;
 		return;
 	}
 
+#ifdef FRAME_CRC
+	frame_crc_temp = _crc_ccitt_update(frame_crc_temp, x >> 8);
+	frame_crc_temp = _crc_ccitt_update(frame_crc_temp, x & 0xFF);
+#endif
+
 	tx.buf[next_b_head] = (uint8_t)(x >> 8);
-	tx.buf[(next_b_head + 1) & (sizeof(tx.buf) - 1)] = (uint8_t)x & 0xFF;
+	tx.buf[(next_b_head + 1) & (sizeof(tx.buf) - 1)] = (uint8_t)(x & 0xFF);
 
 	tx.p_idx[next_head] = (tx.p_idx[next_head] + 2) & (sizeof(tx.buf) - 1);
 }
+
+
+#define APPEND16(circ, val) do {					\
+	uint8_t next_head = ((circ).head + 1) & (sizeof((circ).p_idx) - 1);\
+	uint8_t next_b_head = (circ).p_idx[next_head];			\
+	(circ).buf[next_b_head] = (uint8_t)((val) >> 8);		\
+	(circ).buf[(next_b_head + 1) & (sizeof((circ).buf) - 1)] =	\
+		(uint8_t)((val) & 0xFF);				\
+	(circ).p_idx[next_head] = ((circ).p_idx[next_head] + 2)		\
+		& (sizeof((circ).buf) - 1);				\
+} while(0)
 
 void frame_done(void)
 {
 	if (!frame_start_flag)
 		return;
+
+#ifdef FRAME_CRC
+	APPEND16(tx, frame_crc_temp);
+#endif
 
 	uint8_t new_head = (tx.head + 1) & (sizeof(tx.p_idx) - 1);
 	uint8_t new_next_head = (new_head + 1) & (sizeof(tx.p_idx) - 1);
@@ -522,6 +569,17 @@ void frame_send(const void *data, uint8_t nbytes)
 		return;
 	}
 
+#ifdef FRAME_CRC
+	uint16_t crc;
+	{
+		/* crc calculation */
+		uint8_t i;
+		for (i = 0; i < nbytes; i++) {
+			crc = _crc_ccitt_update(crc, data[i]);
+		}
+	}
+#endif
+
 	/* amount to copy in first memcpy */
 	uint8_t space_to_end =
 		MIN(CIRC_SPACE_TO_END(cur_b_head, cur_b_tail, sizeof(tx.buf)),
@@ -536,6 +594,10 @@ void frame_send(const void *data, uint8_t nbytes)
 
 	/* advance packet length */
 	tx.p_idx[next_head] = (cur_b_head + nbytes) & (sizeof(tx.buf) - 1);
+
+#ifdef FRAME_CRC
+	APPEND16(tx, crc);
+#endif
 
 	/* advance packet idx */
 	/* XXX: if we usart0_udre_lock() prior to setting tx.head,
