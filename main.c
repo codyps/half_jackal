@@ -8,6 +8,7 @@
 #include "frame_async.h"
 
 #include "muc.h"
+#include "motor_shb.h"
 
 __attribute__((noreturn))
 void main(void)
