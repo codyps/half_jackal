@@ -2,8 +2,8 @@
 #define MOTOR_SHB_H_
 
 #include <stdint.h>
-#include "timer.h"
-#include "common.h"
+#include "muc/muc.h"
+#include "muc/timer.h"
 
 struct pin {
 	uint8_t volatile *port;
