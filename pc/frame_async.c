@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <errno.h>
 
-#include "../proto.h"
+#include "frame_proto.h"
 
 ssize_t frame_send(FILE *out, void *data, size_t nbytes)
 {

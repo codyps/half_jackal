@@ -231,7 +231,7 @@ clean: | $(TARGET).clean $(TARGET).u.clean
 	$(RM) $(OBJ) \
 	$(LST) \
 	$(SRC:.c=.s) \
-	$(SRC:.c=.d)
+	$(SRC:=.d)
 
 depend:
 	if grep '^# DO NOT DELETE' $(MAKEFILE) >/dev/null; \
