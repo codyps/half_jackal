@@ -15,6 +15,7 @@ SRC  = main.c
 SRC += frame_async.c
 SRC += error_led.c
 SRC += muc/pid.c
+SRC += muc/adc.c
 
 ASRC =
 OPT = s
