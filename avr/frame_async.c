@@ -513,13 +513,13 @@ void frame_append_u16(uint16_t x)
 }
 
 #define APPEND16(circ, val) do {					\
-	uint8_t next_head = ((circ).head + 1) & (sizeof((circ).p_idx) - 1);\
-	uint8_t next_b_head = (circ).p_idx[next_head];			\
+	uint8_t next_i_head = ((circ).head + 1) & (sizeof((circ).p_idx) - 1);\
+	uint8_t next_b_head = (circ).p_idx[next_i_head];		\
 	(circ).buf[next_b_head] = (uint8_t)((val) >> 8);		\
-	(circ).buf[(next_b_head + 1) & (sizeof((circ).buf) - 1)] =	\
-		(uint8_t)((val) & 0xFF);				\
-	(circ).p_idx[next_head] = ((circ).p_idx[next_head] + 2)		\
-		& (sizeof((circ).buf) - 1);				\
+	next_b_head = CIRC_NEXT(next_b_head, sizeof((circ).buf));	\
+	(circ).buf[next_b_head] = (uint8_t)((val) & 0xFF);		\
+	(circ).p_idx[next_i_head] =					\
+		CIRC_NEXT(next_b_head, sizeof((circ).buf));		\
 } while(0)
 
 void frame_done(void)
