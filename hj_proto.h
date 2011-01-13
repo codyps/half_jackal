@@ -67,4 +67,7 @@ enum hj_pkt_type {
 #define HJ_PKT_TIMEOUT_INITIALIZER { .head = { .type = HJ_PT_TIMEOUT },\
 	.crc = htons(0x1d0f) }
 
+#define HJ_PKT_INFO_INITIALIZER \
+	{ .head = { .type = HJ_PT_INFO } }
+
 #endif

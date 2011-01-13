@@ -10,10 +10,22 @@
 
 
 #include "muc/muc.h"
+#include "muc/adc.h"
 #include "motor_shb.h"
 #include "../hj_proto.h"
 
-static void hj_motor_set_speed(int16_t speed) {
+uint16_t crc_ccitt_buf(uint16_t crc, void *buf_v, uint8_t len)
+{
+	uint8_t i;
+	uint8_t *buf = buf_v;
+	for (i = 0; i < len ; i++) {
+		crc = _crc_ccitt_update(crc, buf[i]);
+	}
+	return crc;
+}
+
+static void hj_motor_set_speed(int16_t speed)
+{
 	mshb_set(0, speed);
 	mshb_set(1, speed);
 }
@@ -27,13 +39,8 @@ static inline void hj_parse(uint8_t *buf, uint8_t len)
 	{
 		/* compute CRC over the length of the packet minus the
 		 * crc at the end */
-		uint16_t crc = 0xffff;
-		uint8_t i;
-		for (i = 0; i < (len - 2); i++) {
-			crc = _crc_ccitt_update(crc, buf[i]);
-		}
-
-		uint16_t recv_crc = (buf[i] << 8) | buf[i+1];
+		uint16_t crc = crc_ccitt_buf(0xffff, buf, len - 2);
+		uint16_t recv_crc = (buf[len-2] << 8) | buf[len-1];
 
 		if (crc != recv_crc)
 			return;
@@ -42,7 +49,7 @@ static inline void hj_parse(uint8_t *buf, uint8_t len)
 	struct hj_pktc_header *head = (typeof(head)) buf;
 
 	switch(head->type) {
-	case HJ_PT_SET_SPEED:
+	case HJ_PT_SET_SPEED: {
 		if (len != HJ_PL_SET_SPEED) {
 			return;
 		}
@@ -52,13 +59,25 @@ static inline void hj_parse(uint8_t *buf, uint8_t len)
 		hj_motor_set_speed(ntohs(pkt->vel));
 
 		break;
-	case HJ_PT_REQ_INFO:
+	}
+	case HJ_PT_REQ_INFO: {
 		if (len != HJ_PL_REQ_INFO) {
 			return;
 		}
 
+		uint16_t vals[ADC_CHANNEL_CT];
+		adc_val_cpy(vals);
+
 		/* send info */
+		struct hj_pkt_info info = HJ_PKT_INFO_INITIALIZER;
+		info.a.current = vals[0];
+		info.b.current = vals[1];
+
+		info.crc = crc_ccitt_buf(0xffff, &info, HJ_PL_INFO - 2);
+
+		frame_send(&info, HJ_PL_INFO);
 		break;
+	}
 	}
 }
 
