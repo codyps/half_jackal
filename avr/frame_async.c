@@ -545,9 +545,9 @@ void frame_done(void)
 void frame_send(const void *data, uint8_t nbytes)
 {
 	uint8_t cur_i_head = tx.head;
-	uint8_t cur_b_head = tx.p_idx[cur_head];
+	uint8_t cur_b_head = tx.p_idx[cur_i_head];
 	uint8_t cur_i_tail = tx.tail;
-	uint8_t cur_b_tail = tx.p_idx[cur_tail];
+	uint8_t cur_b_tail = tx.p_idx[cur_i_tail];
 
 	/* we can fill .buf up completely only in the case that the packet
 	 * buffer has more than 1 packet (which is very likely), so use
@@ -604,9 +604,9 @@ void frame_send(const void *data, uint8_t nbytes)
 	 * able to process the entire added packet and disable itself prior
 	 * to us calling usart0_udre_unlock().
 	 */
-	tx.head = next_head;
+	tx.head = next_i_head;
 
-	/* new packet starts from b_head = tx.p_idx[next_i_head] */
+	/* new packet starts from tx.p_idx[next_i_head] */
 	usart0_udre_isr_on();
 }
 
