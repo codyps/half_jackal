@@ -339,7 +339,6 @@ RX_ISR()
 		/* we previously recieved an escape char, transform data */
 		is_escaped = false;
 		data ^= ESC_MASK;
-
 	}
 
 	/* do we have another byte to write into? */
@@ -353,7 +352,6 @@ RX_ISR()
 
 		return;
 	}
-
 
 	/* well, shucks. we're out of space, drop the packet */
 	/* goto drop_packet; */
@@ -446,7 +444,8 @@ void frame_start(void)
 
 	if (CIRC_SPACE(tx.head, tx.tail, sizeof(tx.p_idx)) > needed_bytes) {
 		frame_start_flag = true;
-		tx.p_idx[CIRC_NEXT(tx.head,sizeof(tx.p_idx))] = tx.p_idx[tx.head];
+		tx.p_idx[CIRC_NEXT(tx.head,sizeof(tx.p_idx))] =
+				tx.p_idx[tx.head];
 #ifdef FRAME_CRC
 		frame_crc_temp = 0xffff;
 #endif
@@ -513,7 +512,6 @@ void frame_append_u16(uint16_t x)
 	tx.p_idx[next_head] = (tx.p_idx[next_head] + 2) & (sizeof(tx.buf) - 1);
 }
 
-
 #define APPEND16(circ, val) do {					\
 	uint8_t next_head = ((circ).head + 1) & (sizeof((circ).p_idx) - 1);\
 	uint8_t next_b_head = (circ).p_idx[next_head];			\
@@ -546,10 +544,10 @@ void frame_done(void)
 
 void frame_send(const void *data, uint8_t nbytes)
 {
-	uint8_t cur_head = tx.head;
+	uint8_t cur_i_head = tx.head;
 	uint8_t cur_b_head = tx.p_idx[cur_head];
-	uint8_t cur_tail = tx.tail;
-	uint8_t cur_b_tail= tx.p_idx[cur_tail];
+	uint8_t cur_i_tail = tx.tail;
+	uint8_t cur_b_tail = tx.p_idx[cur_tail];
 
 	/* we can fill .buf up completely only in the case that the packet
 	 * buffer has more than 1 packet (which is very likely), so use
@@ -561,9 +559,9 @@ void frame_send(const void *data, uint8_t nbytes)
 		return;
 	}
 
-	uint8_t next_head = CIRC_NEXT(cur_head, sizeof(tx.p_idx));
+	uint8_t next_i_head = CIRC_NEXT(cur_i_head, sizeof(tx.p_idx));
 	/* do we have space for the packet_idx? */
-	if (next_head == cur_tail) {
+	if (next_i_head == cur_i_tail) {
 		return;
 	}
 
@@ -591,7 +589,7 @@ void frame_send(const void *data, uint8_t nbytes)
 	memcpy(tx.buf, data + space_to_end, nbytes - space_to_end);
 
 	/* advance packet length */
-	tx.p_idx[next_head] = (cur_b_head + nbytes) & (sizeof(tx.buf) - 1);
+	tx.p_idx[next_i_head] = (cur_b_head + nbytes) & (sizeof(tx.buf) - 1);
 
 #ifdef FRAME_CRC
 	APPEND16(tx, crc);
@@ -608,9 +606,7 @@ void frame_send(const void *data, uint8_t nbytes)
 	 */
 	tx.head = next_head;
 
-	/* XXX: do we need to set
-	 * tx.p_idx[next_next_head] = tx.p_idx[next_head]
-	 * ? */
+	/* new packet starts from b_head = tx.p_idx[next_i_head] */
 	usart0_udre_isr_on();
 }
 
