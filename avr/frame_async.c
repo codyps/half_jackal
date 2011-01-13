@@ -343,8 +343,6 @@ RX_ISR()
 	}
 
 	/* do we have another byte to write into? */
-	/* FIXME: don't need full CIRC_SPACE calculation */
-	//if (CIRC_SPACE(rx.p_idx[next_head], rx.p_idx[rx.tail], sizeof(rx.buf))) {
 	uint8_t next_b_head = rx.p_idx[next_head];
 	uint8_t next_b_next_head = CIRC_NEXT(next_b_head, sizeof(rx.buf));
 	uint8_t b_tail = rx.p_idx[rx.tail];
