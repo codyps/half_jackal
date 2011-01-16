@@ -23,7 +23,8 @@ struct hj_pktc_motor_info {
 struct hj_pkt_set_speed {
 	struct hj_pktc_header head;
 	/* "vel" of both attached motors, TODO: determine units. */
-	int16_t vel;
+	int16_t vel_l;
+	int16_t vel_r;
 	uint16_t crc; /* the CCITT crc */
 } __packed;
 

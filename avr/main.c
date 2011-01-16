@@ -14,7 +14,7 @@
 #include "motor_shb.h"
 #include "../hj_proto.h"
 
-uint16_t crc_ccitt_buf(uint16_t crc, void *buf_v, uint8_t len)
+static uint16_t crc_ccitt_buf(uint16_t crc, void *buf_v, uint8_t len)
 {
 	uint8_t i;
 	uint8_t *buf = buf_v;
@@ -24,13 +24,7 @@ uint16_t crc_ccitt_buf(uint16_t crc, void *buf_v, uint8_t len)
 	return crc;
 }
 
-static void hj_motor_set_speed(int16_t speed)
-{
-	mshb_set(0, speed);
-	mshb_set(1, speed);
-}
-
-static inline void hj_parse(uint8_t *buf, uint8_t len)
+static void hj_parse(uint8_t *buf, uint8_t len)
 {
 	if (len < HJ_PL_MIN) {
 		return;
@@ -56,7 +50,8 @@ static inline void hj_parse(uint8_t *buf, uint8_t len)
 
 		struct hj_pkt_set_speed *pkt = (typeof(pkt)) buf;
 
-		hj_motor_set_speed(ntohs(pkt->vel));
+		mshb_set(0, ntohs(pkt->vel_l));
+		mshb_set(1, ntohs(pkt->vel_r));
 
 		break;
 	}

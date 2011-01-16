@@ -8,7 +8,6 @@ information for each motor.
 Motor speed is set via the usart interface, packets are framed in a hdlc
 like manner, and CRC-CCITT protected.
 
-As this is indended to drive half of the motors on a robot, the same speed
-is desired on both the attached motors (it is driving one side). A second
-(identical) setup drives the opposite side (left vs right).
-
+Due to the physical layout of the robot 1 motor controler (half_jackal/hj)
+will controll a pair of left/right wheels such that a hj controls the 2
+front wheels and a second controls the 2 rear wheels.
