@@ -498,14 +498,19 @@ void frame_append_u16(uint16_t x)
 	tx.p_idx[next_head] = (tx.p_idx[next_head] + 2) & (sizeof(tx.buf) - 1);
 }
 
-#define APPEND16(circ, val) do {					\
-	uint8_t next_i_head = ((circ).head + 1) & (sizeof((circ).p_idx) - 1);\
+#define APPEND8(circ, val) do {						\
+	uint8_t i_head = (circ).head;					\
+	uint8_t b_head = (circ).p_idx[i_head];				\
+	uint8_t next_i_head = CIRC_NEXT(i_head, sizeof((circ).p_idx));	\
 	uint8_t next_b_head = (circ).p_idx[next_i_head];		\
-	(circ).buf[next_b_head] = (uint8_t)((val) >> 8);		\
-	next_b_head = CIRC_NEXT(next_b_head, sizeof((circ).buf));	\
-	(circ).buf[next_b_head] = (uint8_t)((val) & 0xFF);		\
-	(circ).p_idx[next_i_head] =					\
-		CIRC_NEXT(next_b_head, sizeof((circ).buf));		\
+	(circ).buf[next_b_head] = (val);				\
+	(circ).p_idx[next_i_head] = next_b_head;			\
+} while(0)
+
+
+#define APPEND16(circ, val) do {					\
+	APPEND8(circ, (uint8_t)(val >> 8));				\
+	APPEND8(circ, (uint8_t)(val & 0xff));				\
 } while(0)
 
 void frame_done(void)
