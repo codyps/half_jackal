@@ -1,0 +1,11 @@
+For those concerned with the crc in the isr:
+
+Baud = 38400
+Bits per byte = 11 = 8 (data) + 1 (stop) + 1 (start) + 1 (check)
+Bytes per second = 38400/11 = 3490.9090909090
+Cycles per second = 16000000
+(avaliable) Cycles per Byte = 13750/3 = 4583.3333
+
+(used) Instructions per Byte = 0x4fc - 0x338 = 452
+
+
