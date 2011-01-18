@@ -1,6 +1,8 @@
 #ifndef PROTO_H_
 #define PROTO_H_
 
+#define CRC_INIT 0xffff
+
 #define START_BYTE ((uint8_t)0x7e)
 #define RESET_BYTE ((uint8_t)0x7f)
 #define ESC_BYTE   ((uint8_t)0x7d)
