@@ -97,7 +97,7 @@ AVRDUDE_PROGRAMMER = arduino
 SERIAL=/dev/ttyUSB1
 AVRDUDE_PORT = -P $(SERIAL) -b 57600
 
-AVRDUDE_WRITE_FLASH = -U flash:w:$(TARGET).hex
+AVRDUDE_WRITE_FLASH = -U flash:w:$(TARGET).u.hex
 #AVRDUDE_WRITE_EEPROM = -U eeprom:w:$(TARGET).eep
 
 
@@ -154,7 +154,7 @@ sym: $(TARGET).u.sym $(TARGET).sym
 
 
 # Program the device.  
-program: $(TARGET).hex $(TARGET).eep
+program: $(TARGET).u.hex $(TARGET).u.eep
 	$(AVRDUDE) $(AVRDUDE_FLAGS) $(AVRDUDE_WRITE_FLASH) $(AVRDUDE_WRITE_EEPROM)
 
 
