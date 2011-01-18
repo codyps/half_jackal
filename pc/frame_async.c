@@ -6,22 +6,30 @@
 
 #include "frame_proto.h"
 
+#define SEND_BYTE(out, c) do {						\
+	if ((c) == START_BYTE || (c) == ESC_BYTE || (c) == RESET_BYTE) {\
+		fputc(ESC_BYTE, (out));					\
+		fputc(ESC_MASK ^ (c), (out));				\
+	} else {							\
+		fputc((c), (out));					\
+	}								\
+} while(0)
+
 ssize_t frame_send(FILE *out, void *data, size_t nbytes)
 {
 	char *d;
 	char *end;
+	uint16_t crc = CRC_INIT;
 
 	fputc(START_BYTE, out);
-
 	for(d = data, end = d + nbytes; d < end; d++) {
 		char c = *d;
-		if (c == START_BYTE || c == ESC_BYTE || c == RESET_BYTE) {
-			fputc(ESC_BYTE, out);
-			fputc(ESC_MASK ^ c, out);
-		} else {
-			fputc(c, out);
-		}
+		crc = crc_ccitt_update(crc, c);
+		SEND_BYTE(out, c);
 	}
+
+	SEND_BYTE(crc >> 8);
+	SEND_BYTE(crc & 0xff);
 
 	fputc(START_BYTE, out);
 
@@ -31,6 +39,7 @@ ssize_t frame_send(FILE *out, void *data, size_t nbytes)
 
 ssize_t frame_recv(FILE *in, void *vbuf, size_t nbytes)
 {
+	uint16_t crc = CRC_INIT;
 	size_t i;
 	char *buf = vbuf;
 	bool recv_started = false;
