@@ -25,24 +25,20 @@ struct hj_pkt_set_speed {
 	/* "vel" of both attached motors, TODO: determine units. */
 	int16_t vel_l;
 	int16_t vel_r;
-	uint16_t crc; /* the CCITT crc */
 } __packed;
 
 struct hj_pkt_req_info {
 	struct hj_pktc_header head;
-	uint16_t crc;
 } __packed;
 
 /** packets returned FROM the hj. **/
 struct hj_pkt_info {
 	struct hj_pktc_header head;
 	struct hj_pktc_motor_info a, b;
-	uint16_t crc;
 } __packed;
 
 struct hj_pkt_timeout {
 	struct hj_pktc_header head;
-	uint16_t crc;
 } __packed;
 
 
@@ -65,10 +61,7 @@ enum hj_pkt_type {
 	HJ_PT_INFO
 };
 
-#define HJ_PKT_TIMEOUT_INITIALIZER { .head = { .type = HJ_PT_TIMEOUT },\
-	.crc = htons(0x1d0f) }
-
-#define HJ_PKT_INFO_INITIALIZER \
-	{ .head = { .type = HJ_PT_INFO } }
+#define HJ_PKT_TIMEOUT_INITIALIZER { .head = { .type = HJ_PT_TIMEOUT } }
+#define HJ_PKT_INFO_INITIALIZER { .head = { .type = HJ_PT_INFO } }
 
 #endif
