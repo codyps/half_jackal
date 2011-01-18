@@ -14,10 +14,10 @@
 #include "motor_shb.h"
 #include "../hj_proto.h"
 
-static void hj_parse(uint8_t *buf, uint8_t len)
+static bool hj_parse(uint8_t *buf, uint8_t len)
 {
-	if (len < HJ_PL_MIN) {
-		return;
+	if ((len > HJ_PL_MAX) || (len < HJ_PL_MIN)) {
+		return true;
 	}
 
 	struct hj_pktc_header *head = (typeof(head)) buf;
@@ -25,7 +25,7 @@ static void hj_parse(uint8_t *buf, uint8_t len)
 	switch(head->type) {
 	case HJ_PT_SET_SPEED: {
 		if (len != HJ_PL_SET_SPEED) {
-			return;
+			return true;
 		}
 
 		struct hj_pkt_set_speed *pkt = (typeof(pkt)) buf;
@@ -37,7 +37,7 @@ static void hj_parse(uint8_t *buf, uint8_t len)
 	}
 	case HJ_PT_REQ_INFO: {
 		if (len != HJ_PL_REQ_INFO) {
-			return;
+			return true;
 		}
 
 		uint16_t vals[ADC_CHANNEL_CT];
@@ -51,7 +51,10 @@ static void hj_parse(uint8_t *buf, uint8_t len)
 		frame_send(&info, HJ_PL_INFO);
 		break;
 	}
+	default:
+		return true;
 	}
+	return false;
 }
 
 
@@ -66,9 +69,7 @@ void main(void)
 	for(;;) {
 		uint8_t buf[HJ_PL_MAX];
 		uint8_t len = frame_recv_copy(buf, sizeof(buf));
-		if (len) {
-			hj_parse(buf, len);
-		} else {
+		if (!(len && hj_parse(buf, len))) {
 			ct++;
 			if (ct == 0) {
 				ct++;
