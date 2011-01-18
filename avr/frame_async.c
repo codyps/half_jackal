@@ -489,13 +489,13 @@ void frame_append_u16(uint16_t x)
 		return;
 	}
 
-	frame_crc_temp = _crc_ccitt_update(frame_crc_temp, x >> 8);
-	frame_crc_temp = _crc_ccitt_update(frame_crc_temp, x & 0xFF);
-
 	tx.buf[next_b_head] = (uint8_t)(x >> 8);
 	tx.buf[(next_b_head + 1) & (sizeof(tx.buf) - 1)] = (uint8_t)(x & 0xFF);
 
 	tx.p_idx[next_head] = (tx.p_idx[next_head] + 2) & (sizeof(tx.buf) - 1);
+
+	frame_crc_temp = _crc_ccitt_update(frame_crc_temp, x >> 8);
+	frame_crc_temp = _crc_ccitt_update(frame_crc_temp, x & 0xFF);
 }
 
 #define APPEND8(circ, val) do {						\
