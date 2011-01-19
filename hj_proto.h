@@ -55,7 +55,7 @@ enum hj_pkt_len {
 #define HJ_PL_MAX HJ_PL_INFO
 
 enum hj_pkt_type {
-	HJ_PT_TIMEOUT = 0,
+	HJ_PT_TIMEOUT = 'a',
 	HJ_PT_SET_SPEED,
 	HJ_PT_REQ_INFO,
 	HJ_PT_INFO
