@@ -36,6 +36,8 @@
  *  []
  */
 #define CRC_SZ sizeof(uint16_t)
+#define P_SZ(circ) (sizeof((circ).p_idx))
+#define B_SZ(circ) (sizeof((circ).buf))
 #define sizeof_member(type, member) \
 	sizeof(((type *)0)->member)
 
@@ -166,11 +168,11 @@ void frame_timeout(void)
  */
 uint8_t frame_recv_len(void)
 {
-	uint8_t p_tail = rx.tail;
-	if (p_tail != rx.head) {
-		return CIRC_CNT(rx.p_idx[CIRC_NEXT(p_tail,sizeof(rx.p_idx))],
-				rx.p_idx[p_tail],
-				sizeof(rx.buf));
+	uint8_t it = rx.tail;
+	if (it != rx.head) {
+		return CIRC_CNT(rx.p_idx[CIRC_NEXT(it,P_SZ(rx))],
+				rx.p_idx[it],
+				B_SZ(rx));
 	} else {
 		return 0;
 	}
@@ -187,14 +189,14 @@ uint8_t frame_recv_len(void)
  */
 uint8_t frame_recv_byte(void)
 {
-	uint8_t p_curr_tail = rx.tail;
-	uint8_t p_next_tail = CIRC_NEXT(p_curr_tail, sizeof(rx.p_idx));
-	uint8_t b_curr_tail = rx.p_idx[p_curr_tail];
-	uint8_t b_next_tail = rx.p_idx[p_next_tail];
+	uint8_t it = rx.tail;
+	uint8_t b_it = rx.p_idx[it];
+	uint8_t it_1 = CIRC_NEXT(it, P_SZ(rx));
+	uint8_t b_it_1 = rx.p_idx[it_1];
 
-	if ((rx.tail != rx.head) && (b_curr_tail != b_next_tail)) {
-		uint8_t data = rx.buf[b_curr_tail];
-		rx.p_idx[p_curr_tail] = CIRC_NEXT(b_curr_tail, sizeof(rx.buf));
+	if ((it != rx.head) && (b_it != b_it_1)) {
+		uint8_t data = rx.buf[b_it];
+		rx.p_idx[it] = CIRC_NEXT(b_it, B_SZ(rx));
 		return data;
 	} else {
 		return 0;
@@ -208,25 +210,22 @@ uint8_t frame_recv_byte(void)
  */
 uint8_t frame_recv_copy(uint8_t *dst, uint8_t len)
 {
-	uint8_t curr_tail = rx.tail;
-	if (curr_tail != rx.head) {
-		uint8_t curr_b_tail = rx.p_idx[curr_tail];
-		uint8_t next_tail = CIRC_NEXT(rx.tail, sizeof(rx.p_idx));
-		uint8_t next_b_tail = rx.p_idx[next_tail];
-		uint8_t ct = CIRC_CNT(next_b_tail, curr_b_tail, sizeof(rx.buf));
-		uint8_t ct_to_end = CIRC_CNT_TO_END(next_b_tail,
-					curr_b_tail, sizeof(rx.buf));
+	uint8_t it = rx.tail;
+	if (it != rx.head) {
+		uint8_t b_it = rx.p_idx[it];
+		uint8_t it_1 = CIRC_NEXT(it, P_SZ(rx));
+		uint8_t b_it_1 = rx.p_idx[it_1];
+		uint8_t ct = CIRC_CNT(b_it_1, b_it, B_SZ(rx));
+		uint8_t ct_to_end = CIRC_CNT_TO_END(b_it_1, b_it, B_SZ(rx));
 
 		uint8_t cpy_ct = MIN(len, ct);
 		uint8_t cpy1_len = MIN(len, ct_to_end);
 		uint8_t cpy2_len = cpy_ct - cpy1_len;
 
-		memcpy(dst, rx.buf + curr_b_tail, cpy1_len);
+		memcpy(dst, rx.buf + b_it, cpy1_len);
 		memcpy(dst + cpy1_len, rx.buf, cpy2_len);
 
-		rx.p_idx[curr_tail] = (curr_b_tail + cpy_ct)
-					& (sizeof(rx.buf) - 1);
-
+		rx.p_idx[it] = (b_it + cpy_ct) & (B_SZ(rx) - 1);
 		return ct;
 	} else {
 		return 0;
@@ -244,8 +243,8 @@ uint8_t frame_recv_copy(uint8_t *dst, uint8_t len)
  */
 void frame_recv_next(void)
 {
-	uint8_t next_tail = CIRC_NEXT(rx.tail, sizeof(rx.p_idx));
-	rx.tail = next_tail;
+	uint8_t it_1 = CIRC_NEXT(rx.tail, P_SZ(rx));
+	rx.tail = it_1;
 }
 
 /* return: true if at least one packet is in the queue. The queue includes
@@ -261,7 +260,7 @@ bool frame_recv_have_pkt(void)
  */
 uint8_t frame_recv_ct(void)
 {
-	return CIRC_CNT(rx.head, rx.tail, sizeof(rx.p_idx));
+	return CIRC_CNT(rx.head, rx.tail, P_SZ(rx));
 }
 
 #define CRC_INIT 0xffff
@@ -274,9 +273,10 @@ RX_ISR()
 	uint8_t data = RX_BYTE_GET();
 	static uint16_t crc;
 
+	uint8_t ih = rx.head;
 	/* safe location (in rx.p_idx) to store the location of the next
 	 * byte to write; */
-	uint8_t next_head = CIRC_NEXT(rx.head, sizeof(rx.p_idx));
+	uint8_t ih_1 = CIRC_NEXT(rx.head, P_SZ(rx));
 
 	/* check `status` for error conditions */
 	if (RX_STATUS_IS_ERROR(status)) {
@@ -291,26 +291,25 @@ RX_ISR()
 		is_escaped = false;
 
 		/* is there any data in the packet? & is its crc valid? */
-		if (rx.p_idx[rx.head] != rx.p_idx[next_head] && !crc) {
+		if (rx.p_idx[ih] != rx.p_idx[ih_1] && !crc) {
 			/* packet has data, check crc. */
-			uint8_t next_next_head =
-				CIRC_NEXT(next_head, sizeof(rx.p_idx));
-			if (next_next_head == rx.tail) {
+			uint8_t ih_2 = CIRC_NEXT(ih_1, P_SZ(rx));
+			if (ih_2 == rx.tail) {
 				/* no space in p_idx for another packet */
 
 				/* Essentailly a packet drop, but we want
 				 * recv_started set as this is a START_BYTE,
 				 * after all. */
-				rx.p_idx[next_head] = rx.p_idx[rx.head];
+				rx.p_idx[ih_1] = rx.p_idx[ih];
 			} else {
 				/* advance the packet idx */
-				rx.head = next_head;
+				rx.head = ih_1;
 
 				/* rx.p_idx[next_head] will be set correctly,
 				 * update rx.p_idx[next_next_head] to be the
 				 * same as rx.p_idx[next_head]
 				 */
-				rx.p_idx[next_next_head] = rx.p_idx[next_head];
+				rx.p_idx[ih_2] = rx.p_idx[ih_1];
 			}
 		}
 
@@ -347,13 +346,12 @@ RX_ISR()
 	crc = _crc_ccitt_update(crc, data);
 
 	/* do we have another byte to write into? */
-	uint8_t next_b_head = rx.p_idx[next_head];
-	uint8_t next_b_next_head = CIRC_NEXT(next_b_head, sizeof(rx.buf));
-	uint8_t b_tail = rx.p_idx[rx.tail];
-	if (b_tail != next_b_next_head) {
-		rx.buf[next_b_head] = data;
-		rx.p_idx[next_head] =
-			(next_b_head + 1) & (sizeof(rx.buf) - 1);
+	uint8_t b_ih_1 = rx.p_idx[ih_1];
+	uint8_t b_ih_1_1 = CIRC_NEXT(b_ih_1, B_SZ(rx));
+	uint8_t b_it = rx.p_idx[rx.tail];
+	if (b_it != b_ih_1_1) {
+		rx.buf[b_ih_1] = data;
+		rx.p_idx[ih_1] = b_ih_1_1;
 
 		return;
 	}
@@ -366,7 +364,7 @@ drop_packet:
 	is_escaped = false;
 	crc = CRC_INIT;
 	/* first byte of the sequence we are writing to; */
-	rx.p_idx[next_head] = rx.p_idx[rx.head];
+	rx.p_idx[ih_1] = rx.p_idx[ih];
 }
 
 /*** Transmision of Data ***/
@@ -383,14 +381,15 @@ TX_ISR()
 	 *        transmitted packet
 	 */
 	static bool packet_started;
-	uint8_t cur_b_tail = tx.p_idx[tx.tail];
-	uint8_t next_tail = CIRC_NEXT(tx.tail,sizeof(tx.p_idx));
+	uint8_t it = tx.tail;
+	uint8_t b_it = tx.p_idx[it];
+	uint8_t it_1 = CIRC_NEXT(it, P_SZ(tx));
 
-	if (cur_b_tail == tx.p_idx[next_tail]) {
+	if (b_it == tx.p_idx[it_1]) {
 		/* no more bytes, signal packet completion */
 		/* advance the packet idx. */
-		tx.tail = next_tail;
-		if (tx.tail == tx.head) {
+		tx.tail = it_1;
+		if (it == tx.head) {
 			usart0_udre_isr_off();
 			packet_started = false;
 		} else {
@@ -403,7 +402,7 @@ TX_ISR()
 
 	/* Error case for UDRIE enabled when ring empty
 	 * no packet indexes seen */
-	if (tx.tail == tx.head) {
+	if (it == tx.head) {
 		packet_started = false;
 		usart0_udre_isr_off();
 		return;
@@ -416,18 +415,18 @@ TX_ISR()
 		return;
 	}
 
-	uint8_t data = tx.buf[cur_b_tail];
+	uint8_t data = tx.buf[b_it];
 
 	if (data == START_BYTE || data == ESC_BYTE || data == RESET_BYTE) {
 		TX_BYTE_SEND(ESC_BYTE);
-		tx.buf[cur_b_tail] = data ^ ESC_MASK;
+		tx.buf[b_it] = data ^ ESC_MASK;
 		return;
 	}
 
 	TX_BYTE_SEND(data);
 
 	/* Advance byte pointer */
-	tx.p_idx[tx.tail] = CIRC_NEXT(cur_b_tail,sizeof(tx.buf));
+	tx.p_idx[it] = CIRC_NEXT(b_it, B_SZ(tx));
 }
 
 /** transmit: producer of data, modifies head **/
@@ -437,17 +436,36 @@ TX_ISR()
  *  - full packet sending:
  *     frame_send
  */
+
+#define FRAME_DROP(circ, ih_1, ih) do {				\
+	(circ).p_idx[ih_1] = (circ).p_idx[ih];			\
+	frame_start_flag = false;				\
+} while(0)
+
+#define PBUF_APPEND8(circ, val) do {					\
+	uint8_t ih = (circ).head;					\
+	uint8_t ih_1 = CIRC_NEXT(ih, P_SZ(circ));			\
+	uint8_t b_ih_1 = (circ).p_idx[ih_1];				\
+	(circ).buf[b_ih_1] = (val);					\
+	(circ).p_idx[ih_1] = b_ih_1;					\
+} while(0)
+
+#define PBUF_APPEND16(circ, val) do {					\
+	PBUF_APPEND8(circ, (uint8_t)(val >> 8));			\
+	PBUF_APPEND8(circ, (uint8_t)(val & 0xff));			\
+} while(0)
+
+
 static bool frame_start_flag;
 static uint16_t frame_crc_temp;
 void frame_start(void)
 {
-	if (CIRC_SPACE(tx.head, tx.tail, sizeof(tx.p_idx)) < CRC_SZ) {
+	if (CIRC_SPACE(tx.head, tx.tail, P_SZ(tx)) < CRC_SZ) {
 		return;
 	}
 
 	frame_start_flag = true;
-	tx.p_idx[CIRC_NEXT(tx.head,sizeof(tx.p_idx))] =
-			tx.p_idx[tx.head];
+	tx.p_idx[CIRC_NEXT(tx.head, P_SZ(tx))] = tx.p_idx[tx.head];
 	frame_crc_temp = 0xffff;
 }
 
@@ -456,21 +474,20 @@ void frame_append_u8(uint8_t x)
 	if (!frame_start_flag)
 		return;
 
-	uint8_t next_head = (tx.head + 1) & (sizeof(tx.p_idx) - 1);
-	uint8_t next_b_head = tx.p_idx[next_head];
+	uint8_t ih = tx.head;
+	uint8_t ih_1 = CIRC_NEXT(ih, P_SZ(tx));
+	uint8_t b_ih_1 = tx.p_idx[ih_1];
 
 	/* Can we advance our packet bytes? if not, drop packet */
-	if (CIRC_SPACE(next_b_head, tx.p_idx[tx.tail], sizeof(tx.buf))
+	if (CIRC_SPACE(b_ih_1, tx.p_idx[tx.tail], B_SZ(tx))
 			< (sizeof(uint8_t) + CRC_SZ)) {
-		tx.p_idx[next_head] = tx.p_idx[tx.head];
-		frame_start_flag = false;
+		FRAME_DROP(tx, ih_1, ih);
 		return;
 	}
 
 	frame_crc_temp = _crc_ccitt_update(frame_crc_temp, x);
 
-	tx.buf[next_b_head] = x;
-	CIRC_NEXT_EQ(tx.p_idx[next_head], sizeof(tx.buf));
+	PBUF_APPEND8(tx, x);
 }
 
 void frame_append_u16(uint16_t x)
@@ -478,79 +495,65 @@ void frame_append_u16(uint16_t x)
 	if (!frame_start_flag)
 		return;
 
-	uint8_t next_head = (tx.head + 1) & (sizeof(tx.p_idx) - 1);
-	uint8_t next_b_head = tx.p_idx[next_head];
+	uint8_t ih = tx.head;
+	uint8_t ih_1 = CIRC_NEXT(ih, P_SZ(tx));
+	uint8_t b_ih_1 = tx.p_idx[ih_1];
 
 	/* Can we advance our packet bytes? if not, drop packet */
-	if (CIRC_SPACE(next_b_head, tx.p_idx[tx.tail], sizeof(tx.buf))
+	if (CIRC_SPACE(b_ih_1, tx.p_idx[tx.tail], B_SZ(tx))
 			< (sizeof(uint16_t) + CRC_SZ)) {
-		tx.p_idx[next_head] = tx.p_idx[tx.head];
-		frame_start_flag = false;
+		FRAME_DROP(tx, ih_1, ih);
 		return;
 	}
 
-	tx.buf[next_b_head] = (uint8_t)(x >> 8);
-	tx.buf[(next_b_head + 1) & (sizeof(tx.buf) - 1)] = (uint8_t)(x & 0xFF);
+	PBUF_APPEND16(tx, x);
 
-	tx.p_idx[next_head] = (tx.p_idx[next_head] + 2) & (sizeof(tx.buf) - 1);
-
-	frame_crc_temp = _crc_ccitt_update(frame_crc_temp, x >> 8);
-	frame_crc_temp = _crc_ccitt_update(frame_crc_temp, x & 0xFF);
+	frame_crc_temp = _crc_ccitt_update(frame_crc_temp, (uint8_t)(x >> 8));
+	frame_crc_temp = _crc_ccitt_update(frame_crc_temp, (uint8_t)(x & 0xFF));
 }
 
-#define APPEND8(circ, val) do {						\
-	uint8_t i_head = (circ).head;					\
-	uint8_t b_head = (circ).p_idx[i_head];				\
-	uint8_t next_i_head = CIRC_NEXT(i_head, sizeof((circ).p_idx));	\
-	uint8_t next_b_head = (circ).p_idx[next_i_head];		\
-	(circ).buf[next_b_head] = (val);				\
-	(circ).p_idx[next_i_head] = next_b_head;			\
-} while(0)
-
-
-#define APPEND16(circ, val) do {					\
-	APPEND8(circ, (uint8_t)(val >> 8));				\
-	APPEND8(circ, (uint8_t)(val & 0xff));				\
-} while(0)
 
 void frame_done(void)
 {
 	if (!frame_start_flag)
 		return;
-
-	APPEND16(tx, frame_crc_temp);
-
-	uint8_t new_head = (tx.head + 1) & (sizeof(tx.p_idx) - 1);
-	uint8_t new_next_head = (new_head + 1) & (sizeof(tx.p_idx) - 1);
-
-	/* Set in this ordering to avoid a race (the moved tx.head indicates
-	 * imediatly that new data can be read) */
-	tx.p_idx[new_next_head] = tx.p_idx[new_head];
-	tx.head = new_head;
-	usart0_udre_isr_on();
 	frame_start_flag = false;
+
+	PBUF_APPEND16(tx, frame_crc_temp);
+
+	uint8_t ih = tx.head;
+	uint8_t ih_1 = CIRC_NEXT(ih, P_SZ(tx));
+	uint8_t ih_2 = CIRC_NEXT(ih_1, P_SZ(tx));
+
+	tx.p_idx[ih_2] = tx.p_idx[ih_1];
+
+	/* XXX: this barrier may not be needed as all necisary updates to
+	 * tx.p_idx[ih_1] are done in previous functions */
+	barrier();
+	tx.head = ih_1;
+	usart0_udre_unlock();
 }
 
 void frame_send(const void *data, uint8_t nbytes)
 {
-	uint8_t cur_i_head = tx.head;
-	uint8_t cur_b_head = tx.p_idx[cur_i_head];
-	uint8_t cur_i_tail = tx.tail;
-	uint8_t cur_b_tail = tx.p_idx[cur_i_tail];
+	uint8_t ih = tx.head;
+	uint8_t b_ih = tx.p_idx[ih];
+	uint8_t it = tx.tail;
+	uint8_t b_it = tx.p_idx[it];
 
 	/* we can fill .buf up completely only in the case that the packet
 	 * buffer has more than 1 packet (which is very likely), so use
 	 * the standard circ buffer managment here to keep the space open */
-	uint8_t space = CIRC_SPACE(cur_b_head, cur_b_tail, sizeof(tx.buf));
+	uint8_t space = CIRC_SPACE(b_ih, b_it, B_SZ(tx));
 
 	/* Can we advance our packet bytes? if not, drop packet */
 	if ((nbytes + CRC_SZ) > space) {
 		return;
 	}
 
-	uint8_t next_i_head = CIRC_NEXT(cur_i_head, sizeof(tx.p_idx));
+	uint8_t ih_1 = CIRC_NEXT(ih, P_SZ(tx));
 	/* do we have space for the packet_idx? */
-	if (next_i_head == cur_i_tail) {
+	if (ih_1 == it) {
 		return;
 	}
 
@@ -565,20 +568,24 @@ void frame_send(const void *data, uint8_t nbytes)
 
 	/* amount to copy in first memcpy */
 	uint8_t space_to_end =
-		MIN(CIRC_SPACE_TO_END(cur_b_head, cur_b_tail, sizeof(tx.buf)),
+		MIN(CIRC_SPACE_TO_END(b_ih, b_it, B_SZ(tx)),
 				nbytes);
 
 	/* copy first segment of data (may be split) */
-	memcpy(tx.buf + cur_b_head, data, space_to_end);
+	memcpy(tx.buf + b_ih, data, space_to_end);
 
 	/* copy second segment if it exsists (nbytes - space_to_end == 0
 	 * when it doesn't) */
 	memcpy(tx.buf, data + space_to_end, nbytes - space_to_end);
 
 	/* advance packet length */
-	tx.p_idx[next_i_head] = (cur_b_head + nbytes) & (sizeof(tx.buf) - 1);
+	tx.p_idx[ih_1] = (b_ih + nbytes) & (B_SZ(tx) - 1);
 
-	APPEND16(tx, crc);
+	PBUF_APPEND16(tx, crc);
+
+	/* update the next I for future packet writes. */
+	uint8_t ih_2 = CIRC_NEXT(ih_1, P_SZ(tx));
+	tx.p_idx[ih_2] = tx.p_idx[ih_1];
 
 	/* advance packet idx */
 	/* XXX: if we usart0_udre_lock() prior to setting tx.head,
@@ -589,10 +596,11 @@ void frame_send(const void *data, uint8_t nbytes)
 	 * able to process the entire added packet and disable itself prior
 	 * to us calling usart0_udre_unlock().
 	 */
-	tx.head = next_i_head;
+	barrier();
+	tx.head = ih_1;
 
 	/* new packet starts from tx.p_idx[next_i_head] */
-	usart0_udre_isr_on();
+	usart0_udre_unlock();
 }
 
 
