@@ -69,17 +69,17 @@ void main(void)
 	for(;;) {
 		uint8_t buf[HJ_PL_MAX];
 		uint8_t len = frame_recv_copy(buf, sizeof(buf));
-		if (!(len && hj_parse(buf, len))) {
+		//if (!hj_parse(buf, len)) {
+		{
 			ct++;
 			if (ct == 0) {
 				ct++;
-				led_flash(3);
+				led_flash(2);
 				struct hj_pkt_timeout tout
 					= HJ_PKT_TIMEOUT_INITIALIZER;
 				frame_send(&tout, HJ_PL_TIMEOUT);
 			}
-			_delay_ms(70);
+			_delay_ms(25);
 		}
-
 	}
 }

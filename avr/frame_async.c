@@ -9,8 +9,10 @@
 #include "muc.h"
 #include "ds/circ_buf.h"
 
-#include "../frame_proto.h"
+#include "error_led.h"
 
+#include "../frame_proto.h"
+#define DEBUG
 /* 0x7f => 0x7d, 0x5f
  * 0x7e => 0x7d, 0x5e
  * 0x7d => 0x7d, 0x5d
@@ -35,7 +37,6 @@
  * data1:
  *  []
  */
-#define CRC_SZ sizeof(uint16_t)
 #define P_SZ(circ) (sizeof((circ).p_idx))
 #define B_SZ(circ) (sizeof((circ).buf))
 #define sizeof_member(type, member) \
@@ -267,6 +268,13 @@ uint8_t frame_recv_ct(void)
 /** recieve: producer, modifies head **/
 RX_ISR()
 {
+#ifdef DEBUG
+	printf("rx_isr: ");
+	print_packet_buf(&rx);
+	putchar('\n');
+	print_wait();
+#endif
+
 	static bool is_escaped;
 	static bool recv_started;
 	uint8_t status = RX_STATUS_GET();
@@ -384,6 +392,13 @@ TX_ISR()
 	uint8_t it = tx.tail;
 	uint8_t b_it = tx.p_idx[it];
 	uint8_t it_1 = CIRC_NEXT(it, P_SZ(tx));
+
+#ifdef DEBUG
+	printf("tx_isr: ");
+	print_packet_buf(&tx);
+	putchar('\n');
+	print_wait();
+#endif
 
 	if (b_it == tx.p_idx[it_1]) {
 		/* no more bytes, signal packet completion */
@@ -541,6 +556,10 @@ void frame_send(const void *data, uint8_t nbytes)
 	uint8_t it = tx.tail;
 	uint8_t b_it = tx.p_idx[it];
 
+	printf("FRAME_SEND:");
+	print_packet_buf(&tx);
+	putchar('\n');
+
 	/* we can fill .buf up completely only in the case that the packet
 	 * buffer has more than 1 packet (which is very likely), so use
 	 * the standard circ buffer managment here to keep the space open */
@@ -548,12 +567,16 @@ void frame_send(const void *data, uint8_t nbytes)
 
 	/* Can we advance our packet bytes? if not, drop packet */
 	if ((nbytes + CRC_SZ) > space) {
+		puts("\tb space");
+		print_wait();
 		return;
 	}
 
 	uint8_t ih_1 = CIRC_NEXT(ih, P_SZ(tx));
 	/* do we have space for the packet_idx? */
 	if (ih_1 == it) {
+		puts("\ti space");
+		print_wait();
 		return;
 	}
 
@@ -600,7 +623,11 @@ void frame_send(const void *data, uint8_t nbytes)
 	tx.head = ih_1;
 
 	/* new packet starts from tx.p_idx[next_i_head] */
+	puts("\tudre_unlock");
+	print_wait();
 	usart0_udre_unlock();
+	puts("\tdone");
+	print_wait();
 }
 
 
