@@ -41,6 +41,40 @@
 #define sizeof_member(type, member) \
 	sizeof(((type *)0)->member)
 
+#define RXDEBUG 1
+
+#ifdef TXDEBUG
+# define DEBUG
+# define dtxprintf(fmt, ...) printf(fmt, ## __VA_ARGS)
+# define dtxprint(fmt, ...) do {	\
+	printf(fmt, ## __VA_ARGS__);	\
+	print_packet_buf(&tx);		\
+	putchar('\n');			\
+} while(0)
+#else
+# define dtxprint(fmt, ...)
+# define dtxprintf(fmt, ...)
+#endif
+
+#ifdef RXDEBUG
+# define DEBUG
+# define drxprintf(fmt, ...) printf(fmt, ## __VA_ARGS)
+# define drxprint(fmt, ...) do {	\
+	printf(fmt, ## __VA_ARGS__);	\
+	print_packet_buf(&rx);		\
+	putchar('\n');			\
+} while(0)
+#else
+# define drxprint(fmt, ...)
+# define drxprintf(fmt, ..)
+#endif
+
+#ifdef DEBUG
+# define dprint_wait print_wait
+#else
+# define dprint_wait
+#endif
+
 struct packet_buf {
 	uint8_t buf[32]; /* bytes */
 
@@ -263,27 +297,9 @@ uint8_t frame_recv_ct(void)
 	return CIRC_CNT(rx.head, rx.tail, P_SZ(rx));
 }
 
-#ifdef DEBUG
-# define dprint(fmt, ...) do {		\
-	printf(fmt, ## __VA_ARGS__);	\
-} while(0)
-# define dtxprint(fmt, ...) do {	\
-	printf(fmt, ## __VA_ARGS__);	\
-	print_packet_buf(&tx);		\
-	putchar('\n');			\
-} while(0)
-# define drxprint(fmt, ...) do {	\
-	printf(fmt, ## __VA_ARGS__);	\
-	print_packet_buf(&rx);		\
-	putchar('\n');			\
-} while(0)
-# define dprint_wait() print_wait()
-#else
-# define dtxprint(fmt, ...)
-# define dprint(fmt, ...)
-# define dprint_wait()
-# define drxprint(fmt, ...)
-#endif
+
+
+
 
 /** recieve: producer, modifies head **/
 RX_ISR()
@@ -314,16 +330,20 @@ RX_ISR()
 		recv_started = true;
 		is_escaped = false;
 
-		/* is there any data in the packet? & is its crc valid? */
-		if (rx.p_idx[ih] != rx.p_idx[ih_1] && !crc) {
+		/* is there any data in the packet? */
+		if (rx.p_idx[ih] != rx.p_idx[ih_1]) {
 			/* packet has data, check crc. */
 			uint8_t ih_2 = CIRC_NEXT(ih_1, P_SZ(rx));
-			if (ih_2 == rx.tail) {
-				/* no space in p_idx for another packet */
+			if (ih_2 == rx.tail || crc != 0) {
+				/* no space in p_idx for another packet,
+				 * or invalid crc. */
 
 				/* Essentailly a packet drop, but we want
 				 * recv_started set as this is a START_BYTE,
 				 * after all. */
+				printf("rx drop: ih_2(%d) == rx.tail(%d) || "
+						" crc(%d) != 0\n",
+						ih_2, rx.tail, crc);
 				rx.p_idx[ih_1] = rx.p_idx[ih];
 			} else {
 				/* advance the packet idx */
@@ -584,7 +604,7 @@ void frame_send(const void *data, uint8_t nbytes)
 	}
 
 	uint8_t ih_1 = CIRC_NEXT(ih, P_SZ(tx));
-	dprint("\tih_1 = %d\n", ih_1);
+	dtxprintf("\tih_1 = %d\n", ih_1);
 	/* do we have space for the packet_idx? */
 	if (ih_1 == it) {
 		dtxprint("\ti space ih_1(%d) == it(%d)", ih_1, it);
@@ -616,7 +636,7 @@ void frame_send(const void *data, uint8_t nbytes)
 	tx.p_idx[ih_1] = (b_ih + nbytes) & (B_SZ(tx) - 1);
 
 	dtxprint("\t BEFORE append:");
-	PBUF_APPEND16(tx, crc);
+	PBUF_APPEND16(tx, htons(crc));
 	dtxprint("\t AFTER append:");
 
 	/* update the next I for future packet writes. */
@@ -639,7 +659,7 @@ void frame_send(const void *data, uint8_t nbytes)
 	dtxprint("\tudre_unlock");
 	dprint_wait();
 	usart0_udre_unlock();
-	dprint("\tdone\n");
+	dtxprintf("\tdone\n");
 	dprint_wait();
 }
 
