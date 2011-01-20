@@ -51,8 +51,8 @@ enum hj_pkt_len {
 	HJ_PL_REQ_INFO = sizeof(struct hj_pkt_req_info)
 };
 
-#define HJ_PL_MIN HJ_PL_TIMEOUT
-#define HJ_PL_MAX HJ_PL_INFO
+#define HJ_PL_MIN (HJ_PL_TIMEOUT + 2)
+#define HJ_PL_MAX (HJ_PL_INFO + 2)
 
 enum hj_pkt_type {
 	HJ_PT_TIMEOUT = 'a',
@@ -63,5 +63,6 @@ enum hj_pkt_type {
 
 #define HJ_PKT_TIMEOUT_INITIALIZER { .head = { .type = HJ_PT_TIMEOUT } }
 #define HJ_PKT_INFO_INITIALIZER { .head = { .type = HJ_PT_INFO } }
+#define HJ_PKT_REQ_INFO_INITIALIZER { .head = { .type = HJ_PT_REQ_INFO } }
 
 #endif
