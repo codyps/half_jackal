@@ -15,7 +15,9 @@ rebuild: | clean build
 build: $(TARGET)
 
 $(TARGET): $(SRC)
-	$(CC) $(CFLAGS) -o $(TARGET) $(SRC)
+	$(CC) $(CFLAGS) -MMD -o $(TARGET) $(SRC)
 
 clean:
-	$(RM) $(TARGET)
+	$(RM) $(TARGET) *.d
+
+-include $(wildcard *.d)
