@@ -14,6 +14,7 @@
 #include "motor_shb.h"
 #include "../hj_proto.h"
 
+/* return true = failure */
 static bool hj_parse(uint8_t *buf, uint8_t len)
 {
 	if ((len > HJ_PL_MAX) || (len < HJ_PL_MIN)) {
@@ -69,8 +70,7 @@ void main(void)
 	for(;;) {
 		uint8_t buf[HJ_PL_MAX];
 		uint8_t len = frame_recv_copy(buf, sizeof(buf));
-		//if (!hj_parse(buf, len)) {
-		{
+		if (hj_parse(buf, len)) {
 			ct++;
 			if (ct == 0) {
 				ct++;
