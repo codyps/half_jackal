@@ -17,15 +17,12 @@
 /* return true = failure */
 static bool hj_parse(uint8_t *buf, uint8_t len)
 {
-	if ((len > HJ_PL_MAX) || (len < HJ_PL_MIN)) {
-		return true;
-	}
-
 	struct hj_pktc_header *head = (typeof(head)) buf;
 
 	switch(head->type) {
 	case HJ_PT_SET_SPEED: {
 		if (len != HJ_PL_SET_SPEED) {
+			led_flash(7);
 			return true;
 		}
 
@@ -38,6 +35,7 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 	}
 	case HJ_PT_REQ_INFO: {
 		if (len != HJ_PL_REQ_INFO) {
+			led_flash(6);
 			return true;
 		}
 
@@ -53,11 +51,11 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 		break;
 	}
 	default:
+		led_flash(5);
 		return true;
 	}
 	return false;
 }
-
 
 __attribute__((noreturn))
 void main(void)
@@ -70,7 +68,7 @@ void main(void)
 	for(;;) {
 		uint8_t buf[HJ_PL_MAX];
 		uint8_t len = frame_recv_copy(buf, sizeof(buf));
-		if (hj_parse(buf, len)) {
+		if (!len || hj_parse(buf, len)) {
 			ct++;
 			if (ct == 0) {
 				ct++;
@@ -79,7 +77,7 @@ void main(void)
 					= HJ_PKT_TIMEOUT_INITIALIZER;
 				frame_send(&tout, HJ_PL_TIMEOUT);
 			}
-			_delay_ms(25);
+			_delay_ms(10);
 		}
 	}
 }
