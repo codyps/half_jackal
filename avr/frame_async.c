@@ -12,7 +12,6 @@
 #include "error_led.h"
 
 #include "../frame_proto.h"
-#define DEBUG
 /* 0x7f => 0x7d, 0x5f
  * 0x7e => 0x7d, 0x5e
  * 0x7d => 0x7d, 0x5d
@@ -264,16 +263,33 @@ uint8_t frame_recv_ct(void)
 	return CIRC_CNT(rx.head, rx.tail, P_SZ(rx));
 }
 
-#define CRC_INIT 0xffff
+#ifdef DEBUG
+# define dprint(fmt, ...) do {		\
+	printf(fmt, ## __VA_ARGS__);	\
+} while(0)
+# define dtxprint(fmt, ...) do {	\
+	printf(fmt, ## __VA_ARGS__);	\
+	print_packet_buf(&tx);		\
+	putchar('\n');			\
+} while(0)
+# define drxprint(fmt, ...) do {	\
+	printf(fmt, ## __VA_ARGS__);	\
+	print_packet_buf(&rx);		\
+	putchar('\n');			\
+} while(0)
+# define dprint_wait() print_wait()
+#else
+# define dtxprint(fmt, ...)
+# define dprint(fmt, ...)
+# define dprint_wait()
+# define drxprint(fmt, ...)
+#endif
+
 /** recieve: producer, modifies head **/
 RX_ISR()
 {
-#ifdef DEBUG
-	printf("rx_isr: ");
-	print_packet_buf(&rx);
-	putchar('\n');
-	print_wait();
-#endif
+	drxprint("rx_isr: ");
+	dprint_wait();
 
 	static bool is_escaped;
 	static bool recv_started;
@@ -393,12 +409,8 @@ TX_ISR()
 	uint8_t b_it = tx.p_idx[it];
 	uint8_t it_1 = CIRC_NEXT(it, P_SZ(tx));
 
-#ifdef DEBUG
-	printf("tx_isr: ");
-	print_packet_buf(&tx);
-	putchar('\n');
-	print_wait();
-#endif
+	dtxprint("tx_isr: ");
+	dprint_wait();
 
 	if (b_it == tx.p_idx[it_1]) {
 		/* no more bytes, signal packet completion */
@@ -549,19 +561,6 @@ void frame_done(void)
 	usart0_udre_unlock();
 }
 
-#ifdef DEBUG
-# define dprint(fmt, ...) do {		\
-	printf(fmt, ## __VA_ARGS__);	\
-} while(0)
-# define dtxprint(fmt, ...) do {	\
-	printf(fmt, ## __VA_ARGS__);	\
-	print_packet_buf(&tx);		\
-	putchar('\n');			\
-} while(0)
-#else
-# define dtxprint(fmt, ...)
-# define dprint(fmt, ...)
-#endif
 
 void frame_send(const void *data, uint8_t nbytes)
 {
@@ -638,10 +637,10 @@ void frame_send(const void *data, uint8_t nbytes)
 
 	/* new packet starts from tx.p_idx[next_i_head] */
 	dtxprint("\tudre_unlock");
-	print_wait();
+	dprint_wait();
 	usart0_udre_unlock();
 	dprint("\tdone\n");
-	print_wait();
+	dprint_wait();
 }
 
 
