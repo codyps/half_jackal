@@ -45,8 +45,9 @@ ssize_t frame_recv(FILE *in, void *vbuf, size_t nbytes)
 	bool recv_started = false;
 	bool is_escaped = false;
 
-	for(i = 0; i < nbytes; ) {
+	for(i = 0;;) {
 		int data = fgetc(in);
+
 		if (data == EOF)
 			break;
 
@@ -61,8 +62,14 @@ ssize_t frame_recv(FILE *in, void *vbuf, size_t nbytes)
 		if (data == START_BYTE) {
 			if (recv_started) {
 				if (i != 0) {
-					ungetc(data, in);
-					return i;
+					/* success */
+					if (crc == 0) {
+						ungetc(data, in);
+						return i;
+					} else {
+						i = 0;
+						continue;
+					}
 				}
 			} else {
 				recv_started = true;
@@ -89,6 +96,7 @@ ssize_t frame_recv(FILE *in, void *vbuf, size_t nbytes)
 			data ^= ESC_MASK;
 		}
 
+		crc = crc_ccitt_update(crc, (uint8_t)(data & 0xff));
 
 		if (i < nbytes) {
 			buf[i] = data;
