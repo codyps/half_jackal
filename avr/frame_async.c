@@ -404,9 +404,9 @@ TX_ISR()
 		/* no more bytes, signal packet completion */
 		/* advance the packet idx. */
 		tx.tail = it_1;
-		if (it == tx.head) {
-			usart0_udre_isr_off();
+		if (it_1 == tx.head) {
 			packet_started = false;
+			usart0_udre_lock();
 		} else {
 			packet_started = true;
 		}
@@ -462,7 +462,7 @@ TX_ISR()
 	uint8_t ih_1 = CIRC_NEXT(ih, P_SZ(circ));			\
 	uint8_t b_ih_1 = (circ).p_idx[ih_1];				\
 	(circ).buf[b_ih_1] = (val);					\
-	(circ).p_idx[ih_1] = b_ih_1;					\
+	(circ).p_idx[ih_1] = CIRC_NEXT(b_ih_1, B_SZ(circ));		\
 } while(0)
 
 #define PBUF_APPEND16(circ, val) do {					\
@@ -549,6 +549,20 @@ void frame_done(void)
 	usart0_udre_unlock();
 }
 
+#ifdef DEBUG
+# define dprint(fmt, ...) do {		\
+	printf(fmt, ## __VA_ARGS__);	\
+} while(0)
+# define dtxprint(fmt, ...) do {	\
+	printf(fmt, ## __VA_ARGS__);	\
+	print_packet_buf(&tx);		\
+	putchar('\n');			\
+} while(0)
+#else
+# define dtxprint(fmt, ...)
+# define dprint(fmt, ...)
+#endif
+
 void frame_send(const void *data, uint8_t nbytes)
 {
 	uint8_t ih = tx.head;
@@ -556,9 +570,7 @@ void frame_send(const void *data, uint8_t nbytes)
 	uint8_t it = tx.tail;
 	uint8_t b_it = tx.p_idx[it];
 
-	printf("FRAME_SEND:");
-	print_packet_buf(&tx);
-	putchar('\n');
+	dtxprint("FRAME_SEND:");
 
 	/* we can fill .buf up completely only in the case that the packet
 	 * buffer has more than 1 packet (which is very likely), so use
@@ -567,16 +579,16 @@ void frame_send(const void *data, uint8_t nbytes)
 
 	/* Can we advance our packet bytes? if not, drop packet */
 	if ((nbytes + CRC_SZ) > space) {
-		puts("\tb space");
-		print_wait();
+		dtxprint("\tb space nbytes(%d) + CRC_SZ(%d) > space(%d)",
+				nbytes, CRC_SZ, space);
 		return;
 	}
 
 	uint8_t ih_1 = CIRC_NEXT(ih, P_SZ(tx));
+	dprint("\tih_1 = %d\n", ih_1);
 	/* do we have space for the packet_idx? */
 	if (ih_1 == it) {
-		puts("\ti space");
-		print_wait();
+		dtxprint("\ti space ih_1(%d) == it(%d)", ih_1, it);
 		return;
 	}
 
@@ -604,7 +616,9 @@ void frame_send(const void *data, uint8_t nbytes)
 	/* advance packet length */
 	tx.p_idx[ih_1] = (b_ih + nbytes) & (B_SZ(tx) - 1);
 
+	dtxprint("\t BEFORE append:");
 	PBUF_APPEND16(tx, crc);
+	dtxprint("\t AFTER append:");
 
 	/* update the next I for future packet writes. */
 	uint8_t ih_2 = CIRC_NEXT(ih_1, P_SZ(tx));
@@ -623,10 +637,10 @@ void frame_send(const void *data, uint8_t nbytes)
 	tx.head = ih_1;
 
 	/* new packet starts from tx.p_idx[next_i_head] */
-	puts("\tudre_unlock");
+	dtxprint("\tudre_unlock");
 	print_wait();
 	usart0_udre_unlock();
-	puts("\tdone");
+	dprint("\tdone\n");
 	print_wait();
 }
 
