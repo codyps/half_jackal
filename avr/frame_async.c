@@ -44,7 +44,7 @@
 #define DBG_TX (DBG_TX_ISR | DBG_TX_MAIN)
 #define DBG_RX (DBG_RX_ISR | DBG_RX_MAIN)
 
-#define DBG_MASK (DBG_TX)
+#define DBG_MASK (DBG_RX)
 #if DBG_MASK
 # define DEBUG 1
 #endif
@@ -311,6 +311,8 @@ RX_ISR()
 	uint8_t data = RX_BYTE_GET();
 	static uint16_t crc;
 
+	dbgprintf(DBG_RX_ISR, "\tdata=0x%x\n", data);
+
 	uint8_t ih = rx.head;
 	/* safe location (in rx.p_idx) to store the location of the next
 	 * byte to write; */
@@ -319,6 +321,7 @@ RX_ISR()
 	/* check `status` for error conditions */
 	if (RX_STATUS_IS_ERROR(status)) {
 		/* frame error, data over run, parity error */
+		dbgprintf(DBG_RX_ISR, "\tframe error\n");
 		goto drop_packet;
 	}
 
@@ -348,16 +351,26 @@ RX_ISR()
 						ih_2, rx.tail, crc);
 				rx.p_idx[ih_1] = rx.p_idx[ih];
 			} else {
+				dbgprintf(DBG_RX_ISR,
+					"\t\trx advance.\n");
 				/* advance the packet idx */
-				rx.head = ih_1;
+				/* end of packet without CRC */
+				uint8_t b_ih_1_n2 = (rx.p_idx[ih_1] - CRC_SZ) &
+							(B_SZ(rx) - 1);
+				rx.p_idx[ih_1] = b_ih_1_n2;
 
-				/* rx.p_idx[next_head] will be set correctly,
+				/* XXX: may not be needed?
+				 * rx.p_idx[next_head] will be set correctly,
 				 * update rx.p_idx[next_next_head] to be the
 				 * same as rx.p_idx[next_head]
 				 */
-				rx.p_idx[ih_2] = rx.p_idx[ih_1];
+				rx.p_idx[ih_2] = b_ih_1_n2;
+
+				rx.head = ih_1;
 			}
 		}
+
+		dbgprintf(DBG_RX_ISR, "\tno data, reseting crc.");
 
 		/* otherwise, we have zero bytes in the packet, no need to
 		 * advance */
@@ -410,6 +423,8 @@ RX_ISR()
 	/* goto drop_packet; */
 
 drop_packet:
+
+	dbgprintf(DBG_RX_ISR, "\tdrop_packet\n");
 	recv_started = false;
 	is_escaped = false;
 	crc = CRC_INIT;
@@ -643,9 +658,9 @@ void frame_send(const void *data, uint8_t nbytes)
 	/* advance packet length */
 	tx.p_idx[ih_1] = (b_ih + nbytes) & (B_SZ(tx) - 1);
 
-	dbgprintf(DBG_TX_MAIN, "\t BEFORE append:");
+	dbgprintf_pbuf(DBG_TX_MAIN, tx, "\t BEFORE append:");
 	PBUF_APPEND16(tx, htons(crc));
-	dbgprintf(DBG_TX_MAIN, "\t AFTER append:");
+	dbgprintf_pbuf(DBG_TX_MAIN, tx, "\t AFTER append:");
 
 	/* update the next I for future packet writes. */
 	uint8_t ih_2 = CIRC_NEXT(ih_1, P_SZ(tx));
