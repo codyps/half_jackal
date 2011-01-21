@@ -4,7 +4,8 @@
 #include <stdint.h>
 #include <errno.h>
 
-#include "frame_proto.h"
+#include "crc.h"
+#include "../frame_proto.h"
 
 #define SEND_BYTE(out, c) do {						\
 	if ((c) == START_BYTE || (c) == ESC_BYTE || (c) == RESET_BYTE) {\
@@ -28,8 +29,8 @@ ssize_t frame_send(FILE *out, void *data, size_t nbytes)
 		SEND_BYTE(out, c);
 	}
 
-	SEND_BYTE(crc >> 8);
-	SEND_BYTE(crc & 0xff);
+	SEND_BYTE(out, crc & 0xff);
+	SEND_BYTE(out, crc >> 8);
 
 	fputc(START_BYTE, out);
 
@@ -67,7 +68,9 @@ ssize_t frame_recv(FILE *in, void *vbuf, size_t nbytes)
 						ungetc(data, in);
 						return i;
 					} else {
+						fprintf(stderr, "crc = %d\n", crc);
 						i = 0;
+						crc = CRC_INIT;
 						continue;
 					}
 				}
