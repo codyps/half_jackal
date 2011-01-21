@@ -68,6 +68,8 @@ void main(void)
 	for(;;) {
 		uint8_t buf[HJ_PL_MAX];
 		uint8_t len = frame_recv_copy(buf, sizeof(buf));
+		if (len)
+			frame_recv_next();
 		if (!len || hj_parse(buf, len)) {
 			ct++;
 			if (ct == 0) {

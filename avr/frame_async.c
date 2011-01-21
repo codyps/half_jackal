@@ -36,44 +36,47 @@
  * data1:
  *  []
  */
+
+#define DBG_TX_ISR  0x0001
+#define DBG_TX_MAIN 0x0002
+#define DBG_RX_ISR  0x0004
+#define DBG_RX_MAIN 0x0008
+#define DBG_TX (DBG_TX_ISR | DBG_TX_MAIN)
+#define DBG_RX (DBG_RX_ISR | DBG_RX_MAIN)
+
+#define DBG_MASK (DBG_TX)
+#if DBG_MASK
+# define DEBUG 1
+#endif
+
+#if DBG_MASK
+# define dbgprintf(sub, fmt, ...) do {		\
+	if (sub & DBG_MASK) {			\
+		printf(fmt, ## __VA_ARGS__);	\
+	}					\
+} while(0)
+# define dbgprintf_pbuf(sub, pbuf, fmt, ...) do {	\
+	if (sub & DBG_MASK) {				\
+		printf(fmt, ## __VA_ARGS__);		\
+		print_packet_buf(&pbuf);		\
+		putchar('\n');				\
+	}						\
+} while(0)
+#define dbgflush(sub) do {				\
+	if (sub & DBG_MASK) {				\
+		print_wait();				\
+	}						\
+} while(0)
+#else
+# define dbgprintf(sub, fmt, ...)
+# define dbgprintf_pbuf(sub, pbuf, fmt, ...)
+# define dbgflush(sub)
+#endif
+
 #define P_SZ(circ) (sizeof((circ).p_idx))
 #define B_SZ(circ) (sizeof((circ).buf))
 #define sizeof_member(type, member) \
 	sizeof(((type *)0)->member)
-
-#define RXDEBUG 1
-
-#ifdef TXDEBUG
-# define DEBUG
-# define dtxprintf(fmt, ...) printf(fmt, ## __VA_ARGS)
-# define dtxprint(fmt, ...) do {	\
-	printf(fmt, ## __VA_ARGS__);	\
-	print_packet_buf(&tx);		\
-	putchar('\n');			\
-} while(0)
-#else
-# define dtxprint(fmt, ...)
-# define dtxprintf(fmt, ...)
-#endif
-
-#ifdef RXDEBUG
-# define DEBUG
-# define drxprintf(fmt, ...) printf(fmt, ## __VA_ARGS)
-# define drxprint(fmt, ...) do {	\
-	printf(fmt, ## __VA_ARGS__);	\
-	print_packet_buf(&rx);		\
-	putchar('\n');			\
-} while(0)
-#else
-# define drxprint(fmt, ...)
-# define drxprintf(fmt, ..)
-#endif
-
-#ifdef DEBUG
-# define dprint_wait print_wait
-#else
-# define dprint_wait
-#endif
 
 struct packet_buf {
 	uint8_t buf[32]; /* bytes */
@@ -86,7 +89,6 @@ struct packet_buf {
 };
 
 static struct packet_buf rx, tx;
-
 
 #if defined(AVR)
 /* {{ DEBUG */
@@ -297,15 +299,11 @@ uint8_t frame_recv_ct(void)
 	return CIRC_CNT(rx.head, rx.tail, P_SZ(rx));
 }
 
-
-
-
-
 /** recieve: producer, modifies head **/
 RX_ISR()
 {
-	drxprint("rx_isr: ");
-	dprint_wait();
+	dbgprintf_pbuf(DBG_RX_ISR, rx, "rx_isr: ");
+	dbgflush(DBG_RX_ISR);
 
 	static bool is_escaped;
 	static bool recv_started;
@@ -330,6 +328,8 @@ RX_ISR()
 		recv_started = true;
 		is_escaped = false;
 
+		dbgprintf(DBG_RX_ISR, "\tdata == START_BYTE\n");
+
 		/* is there any data in the packet? */
 		if (rx.p_idx[ih] != rx.p_idx[ih_1]) {
 			/* packet has data, check crc. */
@@ -341,7 +341,9 @@ RX_ISR()
 				/* Essentailly a packet drop, but we want
 				 * recv_started set as this is a START_BYTE,
 				 * after all. */
-				printf("rx drop: ih_2(%d) == rx.tail(%d) || "
+				dbgprintf(DBG_RX_ISR,
+					"\t\trx drop: ih_2(%d) =="
+						" rx.tail(%d) || "
 						" crc(%d) != 0\n",
 						ih_2, rx.tail, crc);
 				rx.p_idx[ih_1] = rx.p_idx[ih];
@@ -365,6 +367,7 @@ RX_ISR()
 
 	if (!recv_started) {
 		/* ignore stuff until we get a start byte */
+		dbgprintf(DBG_RX_ISR, "\t!recv_started\n");
 		return;
 	}
 
@@ -400,6 +403,9 @@ RX_ISR()
 		return;
 	}
 
+	dbgprintf(DBG_RX_ISR, "\tb_it(%d) == b_ih_1_1(%d)\n",
+			b_it, b_ih_1_1);
+
 	/* well, shucks. we're out of space, drop the packet */
 	/* goto drop_packet; */
 
@@ -429,8 +435,8 @@ TX_ISR()
 	uint8_t b_it = tx.p_idx[it];
 	uint8_t it_1 = CIRC_NEXT(it, P_SZ(tx));
 
-	dtxprint("tx_isr: ");
-	dprint_wait();
+	dbgprintf_pbuf(DBG_TX_ISR, tx, "tx_isr: ");
+	dbgflush(DBG_TX_ISR);
 
 	if (b_it == tx.p_idx[it_1]) {
 		/* no more bytes, signal packet completion */
@@ -589,7 +595,7 @@ void frame_send(const void *data, uint8_t nbytes)
 	uint8_t it = tx.tail;
 	uint8_t b_it = tx.p_idx[it];
 
-	dtxprint("FRAME_SEND:");
+	dbgprintf_pbuf(DBG_TX_MAIN, tx, "FRAME_SEND:");
 
 	/* we can fill .buf up completely only in the case that the packet
 	 * buffer has more than 1 packet (which is very likely), so use
@@ -598,16 +604,18 @@ void frame_send(const void *data, uint8_t nbytes)
 
 	/* Can we advance our packet bytes? if not, drop packet */
 	if ((nbytes + CRC_SZ) > space) {
-		dtxprint("\tb space nbytes(%d) + CRC_SZ(%d) > space(%d)",
+		dbgprintf(DBG_TX_MAIN,
+				"\tb space nbytes(%d) + CRC_SZ(%d) > space(%d)",
 				nbytes, CRC_SZ, space);
 		return;
 	}
 
 	uint8_t ih_1 = CIRC_NEXT(ih, P_SZ(tx));
-	dtxprintf("\tih_1 = %d\n", ih_1);
+	dbgprintf(DBG_TX_MAIN, "\tih_1 = %d\n", ih_1);
 	/* do we have space for the packet_idx? */
 	if (ih_1 == it) {
-		dtxprint("\ti space ih_1(%d) == it(%d)", ih_1, it);
+		dbgprintf(DBG_TX_MAIN,
+				"\ti space ih_1(%d) == it(%d)", ih_1, it);
 		return;
 	}
 
@@ -635,9 +643,9 @@ void frame_send(const void *data, uint8_t nbytes)
 	/* advance packet length */
 	tx.p_idx[ih_1] = (b_ih + nbytes) & (B_SZ(tx) - 1);
 
-	dtxprint("\t BEFORE append:");
+	dbgprintf(DBG_TX_MAIN, "\t BEFORE append:");
 	PBUF_APPEND16(tx, htons(crc));
-	dtxprint("\t AFTER append:");
+	dbgprintf(DBG_TX_MAIN, "\t AFTER append:");
 
 	/* update the next I for future packet writes. */
 	uint8_t ih_2 = CIRC_NEXT(ih_1, P_SZ(tx));
@@ -656,11 +664,11 @@ void frame_send(const void *data, uint8_t nbytes)
 	tx.head = ih_1;
 
 	/* new packet starts from tx.p_idx[next_i_head] */
-	dtxprint("\tudre_unlock");
-	dprint_wait();
+	dbgprintf(DBG_TX_MAIN, "\tudre_unlock");
+	dbgflush(DBG_TX_MAIN);
 	usart0_udre_unlock();
-	dtxprintf("\tdone\n");
-	dprint_wait();
+	dbgprintf(DBG_TX_MAIN, "\tdone\n");
+	dbgflush(DBG_TX_MAIN);
 }
 
 
