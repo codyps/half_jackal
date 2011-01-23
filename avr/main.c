@@ -90,8 +90,10 @@ static void wdt_progress(void)
 	if (!(WDTCSR & (1 << WDIE))) {
 		/* enable our interrupt again so we
 		 * don't reset on the next expire */
+		cli();
 		WDTCSR = (1 << WDCE) | (1 << WDE) | WDT_CSRVAL;
 		WDTCSR = WDT_CSRVAL;
+		sei();
 	}
 }
 
