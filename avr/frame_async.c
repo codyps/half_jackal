@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <avr/power.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/crc16.h>
@@ -44,7 +45,7 @@
 #define DBG_TX (DBG_TX_ISR | DBG_TX_MAIN)
 #define DBG_RX (DBG_RX_ISR | DBG_RX_MAIN)
 
-#define DBG_MASK (DBG_RX)
+#define DBG_MASK 0
 #if DBG_MASK
 # define DEBUG 1
 #endif
@@ -691,6 +692,7 @@ void frame_send(const void *data, uint8_t nbytes)
 #ifdef AVR
 static void usart0_init(void)
 {
+	power_usart0_enable();
 	/* Disable ISRs, recv, and trans */
 	UCSR0B = 0;
 
