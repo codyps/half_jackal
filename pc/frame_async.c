@@ -66,7 +66,7 @@ ssize_t frame_recv(FILE *in, void *vbuf, size_t nbytes)
 					/* success */
 					if (crc == 0) {
 						ungetc(data, in);
-						return i;
+						return i - 2;
 					} else {
 						fprintf(stderr, "crc = %d\n", crc);
 						i = 0;
