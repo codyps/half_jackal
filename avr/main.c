@@ -69,8 +69,8 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 	return false;
 }
 
-#define WDT_PRESCALE ((1 << WDP2) | (0 << WDP1) | (1 << WDP0))
-#define WDT_CSRVAL ((1 << WDE) | (1 << WDIE) | WDT_PRESCALE)
+#define WDT_PRESCALE ((0 << WDP3) | (1 << WDP2) | (0 << WDP1) | (1 << WDP0))
+#define WDT_CSRVAL ((0 << WDE) | (1 << WDIE) | WDT_PRESCALE)
 
 static void wdt_setup(void)
 {
@@ -78,23 +78,20 @@ static void wdt_setup(void)
 	MCUSR &= ~(1<<WDRF);
 
 	/* timed sequence: */
-	WDTCSR = (1 << WDCE) | (1 << WDE) | WDT_CSRVAL;
+	WDTCSR |= (1 << WDCE) | (1 << WDE);
 	WDTCSR = WDT_CSRVAL;
 }
 
-volatile bool wd_timeout_past;
 volatile bool wd_timeout;
 
 static void wdt_progress(void)
 {
 	wdt_reset();
-	if (wd_timeout_past) {
+	if (!(WDTCSR & (1 << WDIE))) {
 		/* enable our interrupt again so we
 		 * don't reset on the next expire */
 		WDTCSR = (1 << WDCE) | (1 << WDE) | WDT_CSRVAL;
 		WDTCSR = WDT_CSRVAL;
-
-		wd_timeout_past = false;
 	}
 }
 
@@ -127,7 +124,6 @@ void main(void)
 				= HJ_PKT_TIMEOUT_INITIALIZER;
 			frame_send(&tout, HJ_PL_TIMEOUT);
 			wd_timeout = false;
-			wd_timeout_past = true;
 		}
 	}
 }
