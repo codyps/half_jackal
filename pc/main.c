@@ -38,8 +38,8 @@ struct bytebuf *bytebuf_append(struct bytebuf *s, char c) {
 
 void send_req_info(FILE *out)
 {
-	struct hj_pkt_req_info ri = HJ_PKT_REQ_INFO_INITIALIZER;
-	frame_send(out, &ri, HJ_PL_REQ_INFO);
+	struct hjb_pkt_req_info ri = HJB_PKT_REQ_INFO_INITIALIZER;
+	frame_send(out, &ri, HJB_PL_REQ_INFO);
 }
 
 void print_hj_motor_info(struct hj_pktc_motor_info *inf, FILE *out)
@@ -64,25 +64,25 @@ int main(int argc, char **argv)
 		}
 
 		switch(h->type) {
-		case HJ_PT_TIMEOUT: {
+		case HJA_PT_TIMEOUT: {
 			fprintf(stderr, "HJ_PT_TIMEOUT:");
-			if (len != HJ_PL_TIMEOUT) {
+			if (len != HJA_PL_TIMEOUT) {
 				fprintf(stderr, "len = %zu, expected %d\n",
-						len, HJ_PL_TIMEOUT);
+						len, HJA_PL_TIMEOUT);
 				continue;
 			}
 			fputc('\n', stderr);
 			send_req_info(stdout);
 			break;
 		}
-		case HJ_PT_INFO: {
+		case HJA_PT_INFO: {
 			fprintf(stderr, "HJ_PT_INFO:");
-			if (len != HJ_PL_INFO) {
+			if (len != HJA_PL_INFO) {
 				fprintf(stderr,	" len = %zu, expected %d\n",
-						len, HJ_PL_INFO);
+						len, HJA_PL_INFO);
 				continue;
 			}
-			struct hj_pkt_info *inf = (typeof(inf)) buf;
+			struct hja_pkt_info *inf = (typeof(inf)) buf;
 			fprintf(stderr, "\n\ta: ");
 			print_hj_motor_info(&inf->a, stderr);
 			fprintf(stderr, "\n\tb: ");

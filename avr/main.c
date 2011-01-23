@@ -16,9 +16,9 @@
 #include "../hj_proto.h"
 
 #define HJ_SEND_ERROR(errnum) do {			\
-	struct hj_pkt_error err_pkt =			\
-		HJ_PKT_ERROR_INITIALIZAER(errnum);	\
-	frame_send(&err_pkt, HJ_PL_ERROR);		\
+	struct hja_pkt_error err_pkt =			\
+		HJA_PKT_ERROR_INITIALIZAER(errnum);	\
+	frame_send(&err_pkt, HJA_PL_ERROR);		\
 } while(0)
 
 /* return true = failure */
@@ -32,13 +32,13 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 	struct hj_pktc_header *head = (typeof(head)) buf;
 
 	switch(head->type) {
-	case HJ_PT_SET_SPEED: {
-		if (len != HJ_PL_SET_SPEED) {
+	case HJB_PT_SET_SPEED: {
+		if (len != HJB_PL_SET_SPEED) {
 			HJ_SEND_ERROR(1);
 			return true;
 		}
 
-		struct hj_pkt_set_speed *pkt = (typeof(pkt)) buf;
+		struct hjb_pkt_set_speed *pkt = (typeof(pkt)) buf;
 
 		mshb_enable(0);
 		mshb_enable(1);
@@ -47,8 +47,8 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 
 		break;
 	}
-	case HJ_PT_REQ_INFO: {
-		if (len != HJ_PL_REQ_INFO) {
+	case HJB_PT_REQ_INFO: {
+		if (len != HJB_PL_REQ_INFO) {
 			HJ_SEND_ERROR(1);
 			return true;
 		}
@@ -57,11 +57,11 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 		adc_val_cpy(vals);
 
 		/* send info */
-		struct hj_pkt_info info = HJ_PKT_INFO_INITIALIZER;
+		struct hja_pkt_info info = HJA_PKT_INFO_INITIALIZER;
 		info.a.current = vals[0];
 		info.b.current = vals[1];
 
-		frame_send(&info, HJ_PL_INFO);
+		frame_send(&info, HJA_PL_INFO);
 		break;
 	}
 	default:
@@ -125,9 +125,9 @@ void main(void)
 		}
 
 		if (wd_timeout) {
-			struct hj_pkt_timeout tout
-				= HJ_PKT_TIMEOUT_INITIALIZER;
-			frame_send(&tout, HJ_PL_TIMEOUT);
+			struct hja_pkt_timeout tout
+				= HJA_PKT_TIMEOUT_INITIALIZER;
+			frame_send(&tout, HJA_PL_TIMEOUT);
 			wd_timeout = false;
 		}
 	}
