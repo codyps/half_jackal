@@ -40,6 +40,8 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 
 		struct hj_pkt_set_speed *pkt = (typeof(pkt)) buf;
 
+		mshb_enable(0);
+		mshb_enable(1);
 		mshb_set(0, ntohs(pkt->vel_l));
 		mshb_set(1, ntohs(pkt->vel_r));
 
@@ -110,6 +112,7 @@ void main(void)
 	power_all_disable();
 	frame_init();
 	led_init();
+	mshb_init();
 	sei();
 	for(;;) {
 		uint8_t buf[HJ_PL_MAX];
