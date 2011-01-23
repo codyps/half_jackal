@@ -14,6 +14,12 @@
 #include "motor_shb.h"
 #include "../hj_proto.h"
 
+#define HJ_SEND_ERROR(errnum) do {			\
+	struct hj_pkt_error err_pkt =			\
+		HJ_PKT_ERROR_INITIALIZAER(errnum);	\
+	frame_send(&err_pkt, HJ_PL_ERROR);		\
+} while(0)
+
 /* return true = failure */
 static bool hj_parse(uint8_t *buf, uint8_t len)
 {
@@ -22,7 +28,7 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 	switch(head->type) {
 	case HJ_PT_SET_SPEED: {
 		if (len != HJ_PL_SET_SPEED) {
-			led_flash(7);
+			HJ_SEND_ERROR(1);
 			return true;
 		}
 
@@ -35,7 +41,7 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 	}
 	case HJ_PT_REQ_INFO: {
 		if (len != HJ_PL_REQ_INFO) {
-			led_flash(6);
+			HJ_SEND_ERROR(1);
 			return true;
 		}
 
@@ -51,7 +57,7 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 		break;
 	}
 	default:
-		led_flash(5);
+		HJ_SEND_ERROR(1);
 		return true;
 	}
 	return false;
@@ -62,6 +68,7 @@ void main(void)
 {
 	static uint8_t ct;
 	cli();
+	power_all_disable();
 	frame_init();
 	led_init();
 	sei();
@@ -74,7 +81,6 @@ void main(void)
 			ct++;
 			if (ct == 0) {
 				ct++;
-				led_flash(2);
 				struct hj_pkt_timeout tout
 					= HJ_PKT_TIMEOUT_INITIALIZER;
 				frame_send(&tout, HJ_PL_TIMEOUT);

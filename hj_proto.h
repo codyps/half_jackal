@@ -41,6 +41,12 @@ struct hj_pkt_timeout {
 	struct hj_pktc_header head;
 } __packed;
 
+struct hj_pkt_error {
+	struct hj_pktc_header head;
+	uint8_t errno;
+	uint16_t line;
+	char file[6];
+} __packed;
 
 /** **/
 
@@ -48,7 +54,8 @@ enum hj_pkt_len {
 	HJ_PL_TIMEOUT = sizeof(struct hj_pkt_timeout),
 	HJ_PL_SET_SPEED = sizeof(struct hj_pkt_set_speed),
 	HJ_PL_INFO = sizeof(struct hj_pkt_info),
-	HJ_PL_REQ_INFO = sizeof(struct hj_pkt_req_info)
+	HJ_PL_REQ_INFO = sizeof(struct hj_pkt_req_info),
+	HJ_PL_ERROR = sizeof(struct hj_pkt_error)
 };
 
 #define HJ_PL_MIN (HJ_PL_TIMEOUT)
@@ -58,11 +65,14 @@ enum hj_pkt_type {
 	HJ_PT_TIMEOUT = 'a',
 	HJ_PT_SET_SPEED,
 	HJ_PT_REQ_INFO,
-	HJ_PT_INFO
+	HJ_PT_INFO,
+	HJ_PT_ERROR
 };
 
 #define HJ_PKT_TIMEOUT_INITIALIZER { .head = { .type = HJ_PT_TIMEOUT } }
 #define HJ_PKT_INFO_INITIALIZER { .head = { .type = HJ_PT_INFO } }
 #define HJ_PKT_REQ_INFO_INITIALIZER { .head = { .type = HJ_PT_REQ_INFO } }
+#define HJ_PKT_ERROR_INITIALIZAER(err) { .head = { .type = HJ_PT_ERROR }, \
+	.line = htons(__LINE__), .file = __FILE__, .errno = err}
 
 #endif
