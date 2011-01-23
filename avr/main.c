@@ -4,6 +4,7 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/wdt.h>
 
 #include "error_led.h"
 #include "frame_async.h"
@@ -23,6 +24,11 @@
 /* return true = failure */
 static bool hj_parse(uint8_t *buf, uint8_t len)
 {
+	if (len < HJ_PL_MIN) {
+		HJ_SEND_ERROR(1);
+		return true;
+	}
+
 	struct hj_pktc_header *head = (typeof(head)) buf;
 
 	switch(head->type) {
@@ -63,11 +69,45 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 	return false;
 }
 
+#define WDT_PRESCALE ((1 << WDP2) | (0 << WDP1) | (1 << WDP0))
+#define WDT_CSRVAL ((1 << WDE) | (1 << WDIE) | WDT_PRESCALE)
+
+static void wdt_setup(void)
+{
+	wdt_reset();
+	MCUSR &= ~(1<<WDRF);
+
+	/* timed sequence: */
+	WDTCSR = (1 << WDCE) | (1 << WDE) | WDT_CSRVAL;
+	WDTCSR = WDT_CSRVAL;
+}
+
+volatile bool wd_timeout_past;
+volatile bool wd_timeout;
+
+static void wdt_progress(void)
+{
+	wdt_reset();
+	if (wd_timeout_past) {
+		/* enable our interrupt again so we
+		 * don't reset on the next expire */
+		WDTCSR = (1 << WDCE) | (1 << WDE) | WDT_CSRVAL;
+		WDTCSR = WDT_CSRVAL;
+
+		wd_timeout_past = false;
+	}
+}
+
+ISR(WDT_vect)
+{
+	wd_timeout = true;
+}
+
 __attribute__((noreturn))
 void main(void)
 {
-	static uint8_t ct;
 	cli();
+	wdt_setup();
 	power_all_disable();
 	frame_init();
 	led_init();
@@ -77,15 +117,17 @@ void main(void)
 		uint8_t len = frame_recv_copy(buf, sizeof(buf));
 		if (len)
 			frame_recv_next();
-		if (!len || hj_parse(buf, len)) {
-			ct++;
-			if (ct == 0) {
-				ct++;
-				struct hj_pkt_timeout tout
-					= HJ_PKT_TIMEOUT_INITIALIZER;
-				frame_send(&tout, HJ_PL_TIMEOUT);
-			}
-			_delay_ms(10);
+
+		if (len && !hj_parse(buf, len)) {
+			wdt_progress();
+		}
+
+		if (wd_timeout) {
+			struct hj_pkt_timeout tout
+				= HJ_PKT_TIMEOUT_INITIALIZER;
+			frame_send(&tout, HJ_PL_TIMEOUT);
+			wd_timeout = false;
+			wd_timeout_past = true;
 		}
 	}
 }
