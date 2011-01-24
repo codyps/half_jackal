@@ -83,6 +83,6 @@ enum hj_pkt_type {
 #define HJB_PKT_REQ_INFO_INITIALIZER { .head = { .type = HJB_PT_REQ_INFO } }
 #define HJB_PKT_SET_SPEED_INITIALIZER(a,b)		\
 	{ .head = { .type = HJB_PT_SET_SPEED},		\
-		.vel_l = htons(a), .vel_r = htons(b) }
+		.vel = { htons(a), htons(b) } }
 
 #endif
