@@ -58,7 +58,7 @@ static struct mshb mshb_d [] = {
 } while(0)
 
 #define PIN_SET_LOW(pin) do {					\
-	*((pin).port) |= (uint8_t)~(pin).mask;			\
+	*((pin).port) &= (uint8_t)~(pin).mask;			\
 } while(0)
 
 #define PWM_INIT(pwm) do {					\
