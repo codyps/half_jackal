@@ -6,13 +6,13 @@
 #include <avr/interrupt.h>
 #include <avr/wdt.h>
 
+#include "muc/muc.h"
+#include "muc/adc.h"
+
+#include "motor_shb.h"
 #include "error_led.h"
 #include "frame_async.h"
 
-
-#include "muc/muc.h"
-#include "muc/adc.h"
-#include "motor_shb.h"
 #include "../hj_proto.h"
 
 #define HJ_SEND_ERROR(errnum) do {			\
@@ -20,6 +20,20 @@
 		HJA_PKT_ERROR_INITIALIZAER(errnum);	\
 	frame_send(&err_pkt, HJA_PL_ERROR);		\
 } while(0)
+
+static int16_t motor_vel[2];
+
+static void update_vel(uint8_t idx, struct hjb_pkt_set_speed *pkt)
+{
+	motor_vel[idx] = ntohs(pkt->vel[idx]);
+	mshb_set(idx, motor_vel[idx]);
+	if (motor_vel[idx]) {
+		mshb_enable(idx);
+	} else {
+		mshb_disable(idx);
+	}
+}
+
 
 /* return true = failure */
 static bool hj_parse(uint8_t *buf, uint8_t len)
@@ -40,10 +54,8 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 
 		struct hjb_pkt_set_speed *pkt = (typeof(pkt)) buf;
 
-		mshb_enable(0);
-		mshb_enable(1);
-		mshb_set(0, ntohs(pkt->vel_l));
-		mshb_set(1, ntohs(pkt->vel_r));
+		update_vel(HJ_MOTOR_R, pkt);
+		update_vel(HJ_MOTOR_L, pkt);
 
 		break;
 	}
@@ -58,8 +70,10 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 
 		/* send info */
 		struct hja_pkt_info info = HJA_PKT_INFO_INITIALIZER;
-		info.a.current = vals[0];
-		info.b.current = vals[1];
+		info.a.current = htons(vals[0]);
+		info.b.current = htons(vals[1]);
+		info.a.cur_vel = htons(motor_vel[0]);
+		info.b.cur_vel = htons(motor_vel[1]);
 
 		frame_send(&info, HJA_PL_INFO);
 		break;
@@ -84,7 +98,7 @@ static void wdt_setup(void)
 	WDTCSR = WDT_CSRVAL;
 }
 
-volatile bool wd_timeout;
+static volatile bool wd_timeout;
 
 static void wdt_progress(void)
 {
@@ -111,6 +125,7 @@ void main(void)
 	wdt_setup();
 	power_all_disable();
 	frame_init();
+	adc_init();
 	led_init();
 	mshb_init();
 	sei();
