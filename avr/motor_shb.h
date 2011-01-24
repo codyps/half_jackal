@@ -33,11 +33,14 @@ struct mshb {
 #define MSHB_INITIALIZER(pa, pb, en)				\
 		{ .pwma = pa, .pwmb = pb, .enable = en }
 
-#define PB_1 PIN_INITIALIZER(PORTB, 1) // arduino  9
-#define PB_2 PIN_INITIALIZER(PORTB, 2) // arduino 10
+
+#define PD_4 PIN_INITIALIZER(PORTD, 4) // arduino  4
 #define PD_5 PIN_INITIALIZER(PORTD, 5) // arduino  5
 #define PD_6 PIN_INITIALIZER(PORTD, 6) // arduino  6
 #define PD_7 PIN_INITIALIZER(PORTD, 7) // arduino  7
+
+#define PB_1 PIN_INITIALIZER(PORTB, 1) // arduino  9
+#define PB_2 PIN_INITIALIZER(PORTB, 2) // arduino 10
 
 #define TMR0_PWMA PWM_INITIALIZER(OCR0A, PD_6)
 #define TMR0_PWMB PWM_INITIALIZER(OCR0B, PD_5)
@@ -45,7 +48,7 @@ struct mshb {
 #define TMR1_PWMB PWM_INITIALIZER(OCR1B, PB_2)
 
 static struct mshb mshb_d [] = {
-	MSHB_INITIALIZER(TMR1_PWMA, TMR0_PWMA, PD_7), // A= 9, B=6, INH=7
+	MSHB_INITIALIZER(TMR1_PWMA, TMR0_PWMA, PD_4), // A= 9, B=6, INH=4
 	MSHB_INITIALIZER(TMR1_PWMB, TMR0_PWMB, PD_7)  // A=10, B=5, INH=7
 };
 
@@ -69,8 +72,8 @@ static struct mshb mshb_d [] = {
 #define MSHB_INIT(mshb) do {					\
 	PWM_INIT((mshb).pwma);					\
 	PWM_INIT((mshb).pwmb);					\
-	PIN_INIT_OUT((mshb).enable);				\
 	PIN_SET_LOW((mshb).enable);				\
+	PIN_INIT_OUT((mshb).enable);				\
 } while(0)
 
 static inline
