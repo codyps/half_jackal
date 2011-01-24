@@ -60,14 +60,14 @@ int main(int argc, char **argv)
 	}
 
 	int motors[2];
-	int ret = sscanf(argv[1], "%d", &motors[0]);
-	if (ret < 0) {
+	int ret = sscanf(argv[1], "%x", &motors[0]);
+	if (ret != 1) {
 		fprintf(stderr, "not a number: \"%s\"", argv[1]);
 		return -2;
 	}
 
-	ret = sscanf(argv[2], "%d", &motors[1]);
-	if (ret < 0) {
+	ret = sscanf(argv[2], "%x", &motors[1]);
+	if (ret != 1) {
 		fprintf(stderr, "not a number: \"%s\"", argv[2]);
 		return -2;
 	}
@@ -108,13 +108,11 @@ int main(int argc, char **argv)
 			print_hj_motor_info(&inf->b, stderr);
 			fprintf(stderr, "\n");
 
-			if (motors[0] || motors[1]) {
-				struct hjb_pkt_set_speed ss =
-					HJB_PKT_SET_SPEED_INITIALIZER(motors[0],
-							motors[1]);
+			struct hjb_pkt_set_speed ss =
+				HJB_PKT_SET_SPEED_INITIALIZER(motors[0],
+						motors[1]);
 
-				frame_send(stdout, &ss, HJB_PL_SET_SPEED);
-			}
+			frame_send(stdout, &ss, HJB_PL_SET_SPEED);
 
 			break;
 		}
