@@ -45,14 +45,33 @@ void send_req_info(FILE *out)
 void print_hj_motor_info(struct hj_pktc_motor_info *inf, FILE *out)
 {
 	fprintf(out, "current: %"PRIu16" enc_ct: %"PRIu32
-			" cur_vel: %"PRIu16"",
+			" cur_vel: %"PRIi16"",
 			ntohs(inf->current),
 			ntohl(inf->enc_ct),
-			ntohs(inf->cur_vel));
+			(int16_t)ntohs(inf->cur_vel));
 }
 
 int main(int argc, char **argv)
 {
+	if (argc < 3) {
+		fprintf(stderr, "usage: %s <motor a> <motor b>\n",
+				argc?argv[0]:"hj");
+		return -1;
+	}
+
+	int motors[2];
+	int ret = sscanf(argv[1], "%d", &motors[0]);
+	if (ret < 0) {
+		fprintf(stderr, "not a number: \"%s\"", argv[1]);
+		return -2;
+	}
+
+	ret = sscanf(argv[2], "%d", &motors[1]);
+	if (ret < 0) {
+		fprintf(stderr, "not a number: \"%s\"", argv[2]);
+		return -2;
+	}
+
 	char buf[1024];
 	for(;;) {
 		size_t len = frame_recv(stdin, buf, sizeof(buf));
@@ -88,6 +107,14 @@ int main(int argc, char **argv)
 			fprintf(stderr, "\n\tb: ");
 			print_hj_motor_info(&inf->b, stderr);
 			fprintf(stderr, "\n");
+
+			if (motors[0] || motors[1]) {
+				struct hjb_pkt_set_speed ss =
+					HJB_PKT_SET_SPEED_INITIALIZER(motors[0],
+							motors[1]);
+
+				frame_send(stdout, &ss, HJB_PL_SET_SPEED);
+			}
 
 			break;
 		}
