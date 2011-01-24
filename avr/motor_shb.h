@@ -33,20 +33,20 @@ struct mshb {
 #define MSHB_INITIALIZER(pa, pb, en)				\
 		{ .pwma = pa, .pwmb = pb, .enable = en }
 
-#define PB_1 PIN_INITIALIZER(PORTB, 1)
-#define PB_2 PIN_INITIALIZER(PORTB, 2)
-#define PD_5 PIN_INITIALIZER(PORTD, 5)
-#define PD_6 PIN_INITIALIZER(PORTD, 6)
-#define PD_7 PIN_INITIALIZER(PORTD, 7)
+#define PB_1 PIN_INITIALIZER(PORTB, 1) // arduino  9
+#define PB_2 PIN_INITIALIZER(PORTB, 2) // arduino 10
+#define PD_5 PIN_INITIALIZER(PORTD, 5) // arduino  5
+#define PD_6 PIN_INITIALIZER(PORTD, 6) // arduino  6
+#define PD_7 PIN_INITIALIZER(PORTD, 7) // arduino  7
 
-#define TMR0_PWMA PWM_INITIALIZER(OCR0A, PD_6) // Arduino: 6
-#define TMR0_PWMB PWM_INITIALIZER(OCR0B, PD_5) // Arduino: 5
-#define TMR1_PWMA PWM_INITIALIZER(OCR1A, PB_1) // Arduino: 9
-#define TMR1_PWMB PWM_INITIALIZER(OCR1B, PB_2) // Arduino: 10
+#define TMR0_PWMA PWM_INITIALIZER(OCR0A, PD_6)
+#define TMR0_PWMB PWM_INITIALIZER(OCR0B, PD_5)
+#define TMR1_PWMA PWM_INITIALIZER(OCR1A, PB_1)
+#define TMR1_PWMB PWM_INITIALIZER(OCR1B, PB_2)
 
-struct mshb mshb_d [] = {
-	MSHB_INITIALIZER(TMR1_PWMA, TMR0_PWMA, PD_7), // Arduino 7
-	MSHB_INITIALIZER(TMR1_PWMB, TMR0_PWMB, PD_7)
+static struct mshb mshb_d [] = {
+	MSHB_INITIALIZER(TMR1_PWMA, TMR0_PWMA, PD_7), // A= 9, B=6, INH=7
+	MSHB_INITIALIZER(TMR1_PWMB, TMR0_PWMB, PD_7)  // A=10, B=5, INH=7
 };
 
 #define PIN_INIT_OUT(pin) do {					\
@@ -73,13 +73,17 @@ struct mshb mshb_d [] = {
 	PIN_SET_LOW((mshb).enable);				\
 } while(0)
 
-#define PWM16_SET(pwm, val15) do {				\
-	*((pwm).mreg) = (uint16_t)(val15);			\
-} while (0)
+static inline
+void pwm8_set(struct pwm8_out pwm, uint16_t val15)
+{
+	*(pwm.mreg) = (uint8_t)((uint16_t)val15 >> (15-8));
+}
 
-#define PWM8_SET(pwm, val15) do {				\
-	*((pwm).mreg) = (uint8_t)((uint16_t)(val15) >> (15-8));	\
-} while (0)
+static inline
+void pwm16_set(struct pwm16_out pwm, uint16_t val15)
+{
+	*(pwm.mreg) = (uint16_t)val15;
+}
 
 static inline void mshb_init(void)
 {
@@ -109,11 +113,11 @@ static inline void mshb_disable(uint8_t i)
 static inline void mshb_set(uint8_t i, int16_t speed)
 {
 	if (speed < 0) {
-		PWM16_SET(mshb_d[i].pwma, 0);
-		PWM8_SET(mshb_d[i].pwmb, -speed);
+		pwm16_set(mshb_d[i].pwma, 0);
+		pwm8_set(mshb_d[i].pwmb, -speed);
 	} else {
-		PWM8_SET(mshb_d[i].pwmb, 0);
-		PWM16_SET(mshb_d[i].pwma, speed);
+		pwm8_set(mshb_d[i].pwmb, 0);
+		pwm16_set(mshb_d[i].pwma, speed);
 	}
 }
 
