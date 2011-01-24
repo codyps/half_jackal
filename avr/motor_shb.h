@@ -33,7 +33,6 @@ struct mshb {
 #define MSHB_INITIALIZER(pa, pb, en)				\
 		{ .pwma = pa, .pwmb = pb, .enable = en }
 
-
 #define PD_4 PIN_INITIALIZER(PORTD, 4) // arduino  4
 #define PD_5 PIN_INITIALIZER(PORTD, 5) // arduino  5
 #define PD_6 PIN_INITIALIZER(PORTD, 6) // arduino  6
@@ -53,6 +52,7 @@ static struct mshb mshb_d [] = {
 };
 
 #define PIN_INIT_OUT(pin) do {					\
+	PIN_SET_LOW(pin);					\
 	*((pin).port - 1) |= (pin).mask;			\
 } while(0)
 
@@ -66,13 +66,11 @@ static struct mshb mshb_d [] = {
 
 #define PWM_INIT(pwm) do {					\
 	PIN_INIT_OUT((pwm).p);					\
-	*((pwm).mreg) = 0;					\
 } while(0)
 
 #define MSHB_INIT(mshb) do {					\
 	PWM_INIT((mshb).pwma);					\
 	PWM_INIT((mshb).pwmb);					\
-	PIN_SET_LOW((mshb).enable);				\
 	PIN_INIT_OUT((mshb).enable);				\
 } while(0)
 
@@ -88,7 +86,8 @@ void pwm16_set(struct pwm16_out pwm, uint16_t val15)
 	*(pwm.mreg) = (uint16_t)val15;
 }
 
-static inline void mshb_init(void)
+static inline
+void mshb_init(void)
 {
 	/* Pin mappings:
 	 * Digital 10 / OC1B / PB2 => PA / PWMA / IN (A)
@@ -103,17 +102,20 @@ static inline void mshb_init(void)
 	}
 }
 
-static inline void mshb_enable(uint8_t i)
+static inline
+void mshb_enable(uint8_t i)
 {
 	PIN_SET_HIGH(mshb_d[i].enable);
 }
 
-static inline void mshb_disable(uint8_t i)
+static inline
+void mshb_disable(uint8_t i)
 {
 	PIN_SET_LOW(mshb_d[i].enable);
 }
 
-static inline void mshb_set(uint8_t i, int16_t speed)
+static inline
+void mshb_set(uint8_t i, int16_t speed)
 {
 	if (speed < 0) {
 		pwm16_set(mshb_d[i].pwma, 0);
