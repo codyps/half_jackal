@@ -22,15 +22,16 @@ struct hj_pktc_header {
 struct hj_pktc_motor_info {
 	uint16_t current;
 	uint32_t enc_ct;
-	uint16_t cur_vel;
+	int16_t cur_vel;
 } __packed;
 
 /** packets dispatched TO the hj. **/
 struct hjb_pkt_set_speed {
 	struct hj_pktc_header head;
 	/* "vel" of both attached motors, TODO: determine units. */
-	int16_t vel_l;
-	int16_t vel_r;
+#define HJ_MOTOR_L 0
+#define HJ_MOTOR_R 1
+	int16_t vel[2];
 } __packed;
 
 struct hjb_pkt_req_info {
@@ -78,7 +79,10 @@ enum hj_pkt_type {
 #define HJA_PKT_TIMEOUT_INITIALIZER { .head = { .type = HJA_PT_TIMEOUT } }
 #define HJA_PKT_INFO_INITIALIZER { .head = { .type = HJA_PT_INFO } }
 #define HJA_PKT_ERROR_INITIALIZAER(err) { .head = { .type = HJA_PT_ERROR }, \
-	.line = htons(__LINE__), .file = __FILE__, .errno = err}
+	.line = htons(__LINE__), .file = __FILE__, .errno = htons(err) }
 #define HJB_PKT_REQ_INFO_INITIALIZER { .head = { .type = HJB_PT_REQ_INFO } }
+#define HJB_PKT_SET_SPEED_INITIALIZER(a,b)		\
+	{ .head = { .type = HJB_PT_SET_SPEED},		\
+		.vel_l = htons(a), .vel_r = htons(b) }
 
 #endif
