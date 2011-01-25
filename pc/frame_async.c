@@ -29,8 +29,10 @@ ssize_t frame_send(FILE *out, void *data, size_t nbytes)
 		SEND_BYTE(out, c);
 	}
 
-	SEND_BYTE(out, crc & 0xff);
+	crc = htons(crc);
+
 	SEND_BYTE(out, crc >> 8);
+	SEND_BYTE(out, crc & 0xff);
 
 	fputc(START_BYTE, out);
 
