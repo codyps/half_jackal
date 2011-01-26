@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <errno.h>
 
+#include <arpa/inet.h>
+
 #include "crc.h"
 #include "../frame_proto.h"
 
