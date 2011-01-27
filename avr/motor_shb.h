@@ -41,6 +41,11 @@ struct mshb {
 #define PB_1 PIN_INITIALIZER(PORTB, 1) // arduino  9
 #define PB_2 PIN_INITIALIZER(PORTB, 2) // arduino 10
 
+#define PC_2 PIN_INITIALIZER(PORTC, 2) // arduino a2
+#define PC_3 PIN_INITIALIZER(PORTC, 3) // arduino a3
+#define PC_4 PIN_INITIALIZER(PORTC, 4) // arduino a4
+#define PC_5 PIN_INITIALIZER(PORTC, 5) // arduino a5
+
 #define TMR0_PWMA PWM_INITIALIZER(OCR0A, PD_6)
 #define TMR0_PWMB PWM_INITIALIZER(OCR0B, PD_5)
 #define TMR1_PWMA PWM_INITIALIZER(OCR1A, PB_1)

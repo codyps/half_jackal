@@ -21,6 +21,27 @@
 	frame_send(&err_pkt, HJA_PL_ERROR);		\
 } while(0)
 
+struct encoder_con {
+	struct pin enc_a;
+	struct pin enc_b;
+	uint32_t enc_ct;
+} static ec [] = {
+	{ PC_4, PC_5, 0},
+	{ PC_2, PC_3, 0}
+};
+
+#define PC_INIT(pin) do {				\
+} while(0)
+
+static void enc_init(void)
+{
+	uint8_t i;
+	for (i = 0; i < ARRAY_SIZE(ec); i++) {
+		PC_INIT(ec[i].enc_a);
+		PC_INIT(ec[i].enc_b);
+	}
+}
+
 static int16_t motor_vel[2];
 
 static void update_vel(uint8_t idx, struct hjb_pkt_set_speed *pkt)
@@ -33,7 +54,6 @@ static void update_vel(uint8_t idx, struct hjb_pkt_set_speed *pkt)
 		mshb_disable(idx);
 	}
 }
-
 
 /* return true = failure */
 static bool hj_parse(uint8_t *buf, uint8_t len)
@@ -128,6 +148,7 @@ void main(void)
 	adc_init();
 	led_init();
 	mshb_init();
+	enc_init();
 	sei();
 	for(;;) {
 		uint8_t buf[HJ_PL_MAX];
