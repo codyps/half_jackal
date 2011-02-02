@@ -21,34 +21,73 @@
 	frame_send(&err_pkt, HJA_PL_ERROR);		\
 } while(0)
 
+#define ENC_PC_N 0
+#define ENC_NAME C
+#define ENC_PORT PORT(ENC_NAME)
+#define ENC_ISR PCINT0_vect
+#define ENC_PCINT_MASK PCMSK0
+
 struct encoder_con {
-	struct pin enc_a;
-	struct pin enc_b;
-	uint32_t enc_ct;
-} static ec [] = {
-	{ PC_4, PC_5, 0},
-	{ PC_2, PC_3, 0}
+	uint8_t a;
+	uint8_t b;
+	uint32_t ct_p;
+	uint32_t ct_n;
+} static ec_data [] = {
+	{ PC4, PC5, 0},
+	{ PC2, PC3, 0}
 };
 
-#define PC_INIT(pin) do {				\
+#define e_pc_init(pin) do {					\
+	/* set pin as input and unmask in pcint register */	\
+	DDR(ENC_NAME) &= ~(1 << pin);				\
+	ENC_PCINT_MASK = ~(1 << pin);				\
+} while(0)
+
+#define enc_init_1(e) do {	\
+	e_pc_init(e.a);		\
+	e_pc_init(e.b);		\
 } while(0)
 
 static void enc_init(void)
 {
 	uint8_t i;
-	for (i = 0; i < ARRAY_SIZE(ec); i++) {
-		PC_INIT(ec[i].enc_a);
-		PC_INIT(ec[i].enc_b);
+	ENC_PCINT_MASK = 0;
+	for (i = 0; i < ARRAY_SIZE(ec_data); i++) {
+		enc_init_1(ec_data[i]);
 	}
 }
 
-static int16_t motor_vel[2];
+#define enc_update(e, port, xport) do {					\
+	uint8_t pin = e.a;						\
+	uint8_t pin_other = e.b;					\
+	if (pin & xport || pin_other & xport) {				\
+		/* when both are at the same level, inc positive */	\
+		if (!(pin & port) == !(pin_other & port)) {		\
+			e.ct_p ++;					\
+		} else {						\
+			e.ct_n ++;					\
+		}							\
+	}								\
+} while(0)
+
+ISR(ENC_ISR)
+{
+	static uint8_t old_port;
+
+	uint8_t port = ENC_PORT;
+	uint8_t xport = port ^ old_port;
+
+	enc_update(ec_data[0], port, xport);
+	enc_update(ec_data[1], port, xport);
+}
+
+static int16_t motor_pwr[2];
 
 static void update_vel(uint8_t idx, struct hjb_pkt_set_speed *pkt)
 {
-	motor_vel[idx] = ntohs(pkt->vel[idx]);
-	mshb_set(idx, motor_vel[idx]);
-	if (motor_vel[idx]) {
+	motor_pwr[idx] = ntohs(pkt->vel[idx]);
+	mshb_set(idx, motor_pwr[idx]);
+	if (motor_pwr[idx]) {
 		mshb_enable(idx);
 	} else {
 		mshb_disable(idx);
@@ -92,8 +131,8 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 		struct hja_pkt_info info = HJA_PKT_INFO_INITIALIZER;
 		info.a.current = htons(vals[0]);
 		info.b.current = htons(vals[1]);
-		info.a.cur_vel = htons(motor_vel[0]);
-		info.b.cur_vel = htons(motor_vel[1]);
+		info.a.cur_vel = htons(motor_pwr[0]);
+		info.b.cur_vel = htons(motor_pwr[1]);
 
 		frame_send(&info, HJA_PL_INFO);
 		break;
