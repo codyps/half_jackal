@@ -22,7 +22,8 @@ struct hj_pktc_header {
 struct hj_pktc_motor_info {
 	uint16_t current;
 	uint32_t enc_ct;
-	int16_t cur_vel;
+	int16_t pwr;
+	int16_t vel;
 } __packed;
 
 /** packets dispatched TO the hj. **/

@@ -131,8 +131,8 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 		struct hja_pkt_info info = HJA_PKT_INFO_INITIALIZER;
 		info.a.current = htons(vals[0]);
 		info.b.current = htons(vals[1]);
-		info.a.cur_vel = htons(motor_pwr[0]);
-		info.b.cur_vel = htons(motor_pwr[1]);
+		info.a.pwr = htons(motor_pwr[0]);
+		info.b.pwr = htons(motor_pwr[1]);
 
 		frame_send(&info, HJA_PL_INFO);
 		break;

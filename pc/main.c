@@ -45,10 +45,11 @@ void send_req_info(FILE *out)
 void print_hj_motor_info(struct hj_pktc_motor_info *inf, FILE *out)
 {
 	fprintf(out, "current: %"PRIu16" enc_ct: %"PRIu32
-			" cur_vel: %"PRIi16"",
+			" pwr: %"PRIi16" vel: %"PRIi16,
 			ntohs(inf->current),
 			ntohl(inf->enc_ct),
-			(int16_t)ntohs(inf->cur_vel));
+			(int16_t)ntohs(inf->pwr),
+			(int16_t)ntohs(inf->vel));
 }
 
 int main(int argc, char **argv)
