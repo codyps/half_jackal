@@ -24,8 +24,10 @@
 #define ENC_PC_N 0
 #define ENC_NAME C
 #define ENC_PORT PORT(ENC_NAME)
-#define ENC_ISR PCINT0_vect
-#define ENC_PCINT_MASK PCMSK0
+#define ENC_ISR PCINT1_vect
+#define ENC_PCINT 1
+#define ENC_PCIE PCIIE1
+#define ENC_PCINT_MASK PCMSK1
 
 struct encoder_con {
 	uint8_t a;
@@ -33,8 +35,8 @@ struct encoder_con {
 	uint32_t ct_p;
 	uint32_t ct_n;
 } static ec_data [] = {
-	{ PC4, PC5, 0},
-	{ PC2, PC3, 0}
+	{ PC4, PC5, 0}, // PCINT12, PCINT13
+	{ PC2, PC3, 0}  // PCINT10, PCINT11
 };
 
 #define e_pc_init(pin) do {					\
@@ -55,6 +57,8 @@ static void enc_init(void)
 	for (i = 0; i < ARRAY_SIZE(ec_data); i++) {
 		enc_init_1(ec_data[i]);
 	}
+
+	PCICR |= (1 << ENC_PCIE);
 }
 
 #define enc_update(e, port, xport) do {					\
