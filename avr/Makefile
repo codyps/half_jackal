@@ -158,7 +158,7 @@ program: $(TARGET).u.hex $(TARGET).u.eep
 	$(AVRDUDE) $(AVRDUDE_FLAGS) $(AVRDUDE_WRITE_FLASH) $(AVRDUDE_WRITE_EEPROM)
 
 picocom:
-	picocom -b 38400 -p o -c $(SERIAL)
+	picocom -b 57600 -p o -c $(SERIAL)
 
 power: 
 	$(AVRDUDE) $(AVRDUDE_POWER)

@@ -703,7 +703,7 @@ static void usart0_init(void)
 		| (1 << UCSZ01) | (1 << UCSZ00);
 
 	/* Baud 38400 */
-# define BAUD 38400
+# define BAUD 57600
 # include <util/setbaud.h>
 	UBRR0 = UBRR_VALUE;
 
