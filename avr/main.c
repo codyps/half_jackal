@@ -26,7 +26,7 @@
 #define ENC_PORT PORT(ENC_NAME)
 #define ENC_ISR PCINT1_vect
 #define ENC_PCINT 1
-#define ENC_PCIE PCIIE1
+#define ENC_PCIE PCIE1
 #define ENC_PCINT_MASK PCMSK1
 
 struct encoder_con {
@@ -52,11 +52,10 @@ struct encoder_con {
 
 static void enc_init(void)
 {
-	uint8_t i;
 	ENC_PCINT_MASK = 0;
-	for (i = 0; i < ARRAY_SIZE(ec_data); i++) {
-		enc_init_1(ec_data[i]);
-	}
+
+	enc_init_1(ec_data[0]);
+	enc_init_1(ec_data[1]);
 
 	PCICR |= (1 << ENC_PCIE);
 }
