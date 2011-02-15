@@ -1,10 +1,5 @@
 
 #if 0
-struct frame_ctx_i {
-	bool start;
-	bool esc;
-	uint16_t crc;
-};
 
 struct frame_ctx {
 	int fd;
@@ -35,31 +30,67 @@ ssize_t frame_recv(struct frame_ctx *fc, void *vbuf, size_t nbytes)
 }
 #endif
 
-struct list_head {
+/**
+ * container_of - cast a member of a structure out to the containing structure
+ * @ptr:	the pointer to the member.
+ * @type:	the type of the container struct this is embedded in.
+ * @member:	the name of the member within the struct.
+ *
+ */
+#define container_of(ptr, type, member) ({			\
+	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
+	(type *)( (char *)__mptr - offsetof(type,member) );})
 
+struct list_head {
+	struct list_head *prev, *next;
+};
+
+struct frame_ctx_i {
+	bool start;
+	bool esc;
+	uint16_t crc;
+	struct list_head list;
 };
 
 struct fcb_ctx {
 	int fd;
-	struct list_head out_list;
-	struct list_head in_list;
+	struct frame_ctx_i out;
+	struct frame_ctx_i in;
 };
 
-#define FRAME_INIT_SZ 1024
+
+static void ctx_i_open(struct fcb_ctx_i *ci)
+{
+	ci->start = false;
+	ci->esc = false;
+	ci->crc = CRC_INIT;
+}
+
 int fcb_open(struct fcb_ctx *ctx, int fd)
 {
 	ctx->fd = fd;
-	ctx->buf = malloc(FRAME_INIT_SZ);
-	if (!ctx->buf) {
-		return -1;
-	}
-	ctx->mem_sz = FRAME_INIT_SZ;
-	ctx->ct = 0;
+
+	ctx_i_open(&ctx->in);
+	ctx_i_open(&ctx->out);
 
 	return 0;
 }
 
 ssize_t fcb_send(struct fcb_ctx *ctx, void *data, size_t nbytes)
 {
+	/* add item to end of list of items */
+}
+
+ssize_t fcb_recv(struct fcb_ctx *ctx, void *data, size_t nbytes)
+{
+	/* if item exsists in queue, pop off.
+	 * otherwise, try and process a recv. If it returns prior to completion,
+	 * return -1?
+	 */
+}
+
+int fcb_flush(struct fcb_ctx *ctx)
+{
+	/* try to complete all outputs */
 }
 
