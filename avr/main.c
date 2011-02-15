@@ -41,8 +41,8 @@ struct encoder_con {
 
 #define e_pc_init(pin) do {					\
 	/* set pin as input and unmask in pcint register */	\
-	DDR(ENC_NAME) &= ~(1 << pin);				\
-	ENC_PCINT_MASK = ~(1 << pin);				\
+	DDR(ENC_NAME)  &= ~(1 << pin);				\
+	ENC_PCINT_MASK |= (1 << pin);				\
 } while(0)
 
 #define enc_init_1(e) do {	\
