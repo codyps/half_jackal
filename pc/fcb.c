@@ -49,7 +49,14 @@ struct frame_ctx_i {
 	bool start;
 	bool esc;
 	uint16_t crc;
-	struct list_head list;
+	struct list_head pkts;
+};
+
+struct fcb_pkt {
+	struct list_head l;
+	size_t mem_len;
+	size_t cur_pos;
+	uint8_t data[];
 };
 
 struct fcb_ctx {
@@ -58,6 +65,10 @@ struct fcb_ctx {
 	struct frame_ctx_i in;
 };
 
+static void new_packet(struct list_head pkts)
+{
+
+}
 
 static void ctx_i_open(struct fcb_ctx_i *ci)
 {
