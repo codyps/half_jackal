@@ -1,0 +1,19 @@
+Current pin mappings.
+
+--
+A1 -> SHB1.CA
+A2 -> SHB2.CA
+
+--
+ 9 -> SHB1.A
+ 6 -> SHB1.B
+ 4 -> SHB1.INH
+10 -> SHB2.A
+ 5 -> SHB2.B
+ 7 -> SHB2.INH
+
+--
+A3 -> M1.ENA
+A4 -> M1.ENB
+A5 -> M2.ENA
+A6 -> M2.ENB
