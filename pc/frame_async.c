@@ -10,9 +10,9 @@
 #include "../frame_proto.h"
 
 #define SEND_BYTE(out, c) do {						\
-	if ((c) == START_BYTE || (c) == ESC_BYTE || (c) == RESET_BYTE) {\
-		fputc(ESC_BYTE, (out));					\
-		fputc(ESC_MASK ^ (c), (out));				\
+	if ((c) == FRAME_START || (c) == FRAME_ESC || (c) == FRAME_RESET) {\
+		fputc(FRAME_ESC, (out));				\
+		fputc(FRAME_ESC_MASK ^ (c), (out));			\
 	} else {							\
 		fputc((c), (out));					\
 	}								\
@@ -22,9 +22,9 @@ ssize_t frame_send(FILE *out, void *data, size_t nbytes)
 {
 	char *d;
 	char *end;
-	uint16_t crc = CRC_INIT;
+	uint16_t crc = FRAME_CRC_INIT;
 
-	fputc(START_BYTE, out);
+	fputc(FRAME_START, out);
 	for(d = data, end = d + nbytes; d < end; d++) {
 		char c = *d;
 		crc = crc_ccitt_update(crc, c);
@@ -36,7 +36,7 @@ ssize_t frame_send(FILE *out, void *data, size_t nbytes)
 	SEND_BYTE(out, crc >> 8);
 	SEND_BYTE(out, crc & 0xff);
 
-	fputc(START_BYTE, out);
+	fputc(FRAME_START, out);
 
 	fflush(out);
 	return nbytes;
@@ -44,7 +44,7 @@ ssize_t frame_send(FILE *out, void *data, size_t nbytes)
 
 ssize_t frame_recv(FILE *in, void *vbuf, size_t nbytes)
 {
-	uint16_t crc = CRC_INIT;
+	uint16_t crc = FRAME_CRC_INIT;
 	size_t i;
 	char *buf = vbuf;
 	bool recv_started = false;
@@ -64,7 +64,7 @@ ssize_t frame_recv(FILE *in, void *vbuf, size_t nbytes)
 			return -255;
 		}
 
-		if (data == START_BYTE) {
+		if (data == FRAME_START) {
 			if (recv_started) {
 				if (i != 0) {
 					/* success */
@@ -74,7 +74,7 @@ ssize_t frame_recv(FILE *in, void *vbuf, size_t nbytes)
 					} else {
 						fprintf(stderr, "crc = %d\n", crc);
 						i = 0;
-						crc = CRC_INIT;
+						crc = FRAME_CRC_INIT;
 						continue;
 					}
 				}
@@ -87,20 +87,20 @@ ssize_t frame_recv(FILE *in, void *vbuf, size_t nbytes)
 		if (!recv_started)
 			continue;
 
-		if (data == RESET_BYTE) {
+		if (data == FRAME_RESET) {
 			/* restart recv */
 			i = 0;
 			continue;
 		}
 
-		if (data == ESC_BYTE) {
+		if (data == FRAME_ESC) {
 			is_escaped = true;
 			continue;
 		}
 
 		if (is_escaped) {
 			is_escaped = false;
-			data ^= ESC_MASK;
+			data ^= FRAME_ESC_MASK;
 		}
 
 		crc = crc_ccitt_update(crc, (uint8_t)(data & 0xff));

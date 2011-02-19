@@ -184,7 +184,6 @@ void frame_timeout(void)
 	printf(" }}\n{{ rx: ");
 	print_packet_buf(&rx);
 	printf(" }}\n");
-
 }
 #endif /* defined(DEBUG) */
 
@@ -326,13 +325,13 @@ RX_ISR()
 		goto drop_packet;
 	}
 
-	if (data == START_BYTE) {
+	if (data == FRAME_START) {
 		/* prepare for start, reset packet position, etc. */
 		/* packet length is non-zero */
 		recv_started = true;
 		is_escaped = false;
 
-		dbgprintf(DBG_RX_ISR, "\tdata == START_BYTE\n");
+		dbgprintf(DBG_RX_ISR, "\tdata == FRAME_START\n");
 
 		/* is there any data in the packet? */
 		if (rx.p_idx[ih] != rx.p_idx[ih_1]) {
@@ -343,7 +342,7 @@ RX_ISR()
 				 * or invalid crc. */
 
 				/* Essentailly a packet drop, but we want
-				 * recv_started set as this is a START_BYTE,
+				 * recv_started set as this is a FRAME_START,
 				 * after all. */
 				dbgprintf(DBG_RX_ISR,
 					"\t\trx drop: ih_2(%d) =="
@@ -356,7 +355,7 @@ RX_ISR()
 					"\t\trx advance.\n");
 				/* advance the packet idx */
 				/* end of packet without CRC */
-				uint8_t b_ih_1_n2 = (rx.p_idx[ih_1] - CRC_SZ) &
+				uint8_t b_ih_1_n2 = (rx.p_idx[ih_1] - FRAME_CRC_SZ) &
 							(B_SZ(rx) - 1);
 				rx.p_idx[ih_1] = b_ih_1_n2;
 
@@ -375,7 +374,7 @@ RX_ISR()
 
 		/* otherwise, we have zero bytes in the packet, no need to
 		 * advance */
-		crc = CRC_INIT;
+		crc = FRAME_CRC_INIT;
 		return;
 	}
 
@@ -385,11 +384,11 @@ RX_ISR()
 		return;
 	}
 
-	if (data == RESET_BYTE) {
+	if (data == FRAME_RESET) {
 		goto drop_packet;
 	}
 
-	if (data == ESC_BYTE) {
+	if (data == FRAME_ESC) {
 		/* Possible error check: is_escaped should not already
 		 * be true */
 		is_escaped = true;
@@ -401,7 +400,7 @@ RX_ISR()
 		 * escaped bytes? */
 		/* we previously recieved an escape char, transform data */
 		is_escaped = false;
-		data ^= ESC_MASK;
+		data ^= FRAME_ESC_MASK;
 	}
 
 	crc = _crc_ccitt_update(crc, data);
@@ -428,7 +427,7 @@ drop_packet:
 	dbgprintf(DBG_RX_ISR, "\tdrop_packet\n");
 	recv_started = false;
 	is_escaped = false;
-	crc = CRC_INIT;
+	crc = FRAME_CRC_INIT;
 	/* first byte of the sequence we are writing to; */
 	rx.p_idx[ih_1] = rx.p_idx[ih];
 }
@@ -465,7 +464,7 @@ TX_ISR()
 			packet_started = true;
 		}
 
-		TX_BYTE_SEND(START_BYTE);
+		TX_BYTE_SEND(FRAME_START);
 		return;
 	}
 
@@ -480,15 +479,15 @@ TX_ISR()
 	/* is it a new packet? */
 	if (!packet_started) {
 		packet_started = true;
-		TX_BYTE_SEND(START_BYTE);
+		TX_BYTE_SEND(FRAME_START);
 		return;
 	}
 
 	uint8_t data = tx.buf[b_it];
 
-	if (data == START_BYTE || data == ESC_BYTE || data == RESET_BYTE) {
-		TX_BYTE_SEND(ESC_BYTE);
-		tx.buf[b_it] = data ^ ESC_MASK;
+	if FRAME_ESC_CHECK(data) {
+		TX_BYTE_SEND(FRAME_ESC);
+		tx.buf[b_it] = data ^ FRAME_ESC_MASK;
 		return;
 	}
 
@@ -529,7 +528,7 @@ static bool frame_start_flag;
 static uint16_t frame_crc_temp;
 void frame_start(void)
 {
-	if (CIRC_SPACE(tx.head, tx.tail, P_SZ(tx)) < CRC_SZ) {
+	if (CIRC_SPACE(tx.head, tx.tail, P_SZ(tx)) < FRAME_CRC_SZ) {
 		return;
 	}
 
@@ -549,7 +548,7 @@ void frame_append_u8(uint8_t x)
 
 	/* Can we advance our packet bytes? if not, drop packet */
 	if (CIRC_SPACE(b_ih_1, tx.p_idx[tx.tail], B_SZ(tx))
-			< (sizeof(uint8_t) + CRC_SZ)) {
+			< (sizeof(uint8_t) + FRAME_CRC_SZ)) {
 		FRAME_DROP(tx, ih_1, ih);
 		return;
 	}
@@ -570,7 +569,7 @@ void frame_append_u16(uint16_t x)
 
 	/* Can we advance our packet bytes? if not, drop packet */
 	if (CIRC_SPACE(b_ih_1, tx.p_idx[tx.tail], B_SZ(tx))
-			< (sizeof(uint16_t) + CRC_SZ)) {
+			< (sizeof(uint16_t) + FRAME_CRC_SZ)) {
 		FRAME_DROP(tx, ih_1, ih);
 		return;
 	}
@@ -619,10 +618,10 @@ void frame_send(const void *data, uint8_t nbytes)
 	uint8_t space = CIRC_SPACE(b_ih, b_it, B_SZ(tx));
 
 	/* Can we advance our packet bytes? if not, drop packet */
-	if ((nbytes + CRC_SZ) > space) {
+	if ((nbytes + FRAME_CRC_SZ) > space) {
 		dbgprintf(DBG_TX_MAIN,
 				"\tb space nbytes(%d) + CRC_SZ(%d) > space(%d)",
-				nbytes, CRC_SZ, space);
+				nbytes, FRAME_CRC_SZ, space);
 		return;
 	}
 
@@ -635,7 +634,7 @@ void frame_send(const void *data, uint8_t nbytes)
 		return;
 	}
 
-	uint16_t crc = CRC_INIT;
+	uint16_t crc = FRAME_CRC_INIT;
 	{
 		/* crc calculation */
 		uint8_t i;
