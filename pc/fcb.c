@@ -108,9 +108,9 @@ static fcb_pkt *pkt_append(fcb_pkt *p, uint8_t b)
 	}
 
 	p->data[p->cur_pos] = b;
+	p->cur_pos ++;
 	return p;
 }
-
 
 #define PKT_ADD(p, c) ({		\
 	bool fail = false;		\
@@ -118,8 +118,7 @@ static fcb_pkt *pkt_append(fcb_pkt *p, uint8_t b)
 	if (!np)			\
 		fail = true;		\
 	(p) = np;			\
-	fail;
-})
+	fail; })
 
 /* Take an outgoing data stream an make it a packet */
 static fcb_pkt *convert_to_pkt(void *data, size_t nbytes)
@@ -128,6 +127,8 @@ static fcb_pkt *convert_to_pkt(void *data, size_t nbytes)
 	size_t elen = 2 + nbytes + nbytes / (256 / 3);
 
 	fcb_pkt *p = pkt_mk(elen);
+	if (!p)
+		return NULL;
 
 	uint8_t *d;
 	uint16_t crc = FRAME_CRC_INIT;
@@ -167,6 +168,9 @@ ssize_t fcb_recv(struct fcb_ctx *ctx, void *data, size_t nbytes)
 	 * otherwise, try and process a recv. If it returns prior to completion,
 	 * return -1?
 	 */
+	if (list_empty(&ctx->in.l)) {
+	}
+
 
 
 }
