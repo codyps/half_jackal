@@ -62,10 +62,60 @@ int fcb_open(struct fcb_ctx *ctx, int fd)
 	return 0;
 }
 
-/* attempt to do some writing of data, if possible */
-ssize_t fcb_advance_out(fcb_ctx *ctx)
+static int in_update(fcb_ctx *ctx)
 {
+	
+}
 
+static int out_update(fcb_ctx *ctx)
+{
+	if (list_empty(ctx->out.l))
+		return 0;
+
+	fcb_pkt *cur = list_first_entry(&ctx->out.l, fcb_pkt, l);
+
+	/* resume or begin writing out `cur' */
+
+
+}
+
+/* attempt to do some writing of data, if possible */
+static int fcb_advance(fcb_ctx *ctx)
+{
+	struct pollfd pfd = { ctx.fd, POLLOUT | POLLIN, 0 };
+	int r = poll(&pfd, 1, 0);
+	if (r > 0) {
+		/* we can do something */
+
+		if (pfd.revents & POLLNVAL) {
+
+		}
+
+		if (pfd.revents & POLLERR) {
+
+		}
+
+		if (pfd.revents & POLLHUP) {
+
+		}
+
+		if (pfd.revents & POLLOUT) {
+			/* do output update */
+			return out_update(ctx);
+		}
+
+		if (pfd.revents & POLLIN) {
+			/* do input update */
+			return in_update(ctx);
+		}
+
+	} else if (r < 0) {
+		/* error */
+		return r;
+	} else {
+		/* can't do anything */
+	}
+	return 0;
 }
 
 /* allocate and intialize a fcb_pkt with data len = init_sz */
@@ -81,21 +131,6 @@ static fcb_pkt *pkt_mk(size_t init_sz)
 	INIT_LIST_HEAD(&p->l);
 
 	return p;
-}
-
-ssize_t fcb_send(struct fcb_ctx *ctx, void *data, size_t nbytes)
-{
-	/* add item to end of list of items */
-	fcb_pkt *pk = malloc(sizeof(*pk) + nbytes);
-	if (!pk) {
-		return -1;
-	}
-
-	memcpy(pk->data, data, nbytes);
-
-	list_add(&pk->l, ctx->out.pkts);
-
-	return fcb_advance_out(ctx);
 }
 
 static fcb_pkt *pkt_append(fcb_pkt *p, uint8_t b)
@@ -120,6 +155,23 @@ static fcb_pkt *pkt_append(fcb_pkt *p, uint8_t b)
 	(p) = np;			\
 	fail; })
 
+#define PKT_ADD_B(p, c) ({			\
+	bool fail = false;			\
+	if (FRAME_ESC_CHECK(c)) {		\
+		if (PKT_ADD(p, FRAME_ESC)) {	\
+			fail = true;		\
+		} else {			\
+			if (PKT_ADD(p, c)) {	\
+				fail = true;	\
+			}			\
+		}				\
+	} else {				\
+		if (PKT_ADD(p, c)) {		\
+			fail = true;		\
+		}				\
+	}					\
+	fail;	})
+
 /* Take an outgoing data stream an make it a packet */
 static fcb_pkt *convert_to_pkt(void *data, size_t nbytes)
 {
@@ -132,9 +184,15 @@ static fcb_pkt *convert_to_pkt(void *data, size_t nbytes)
 
 	uint8_t *d;
 	uint16_t crc = FRAME_CRC_INIT;
+
+	if (PKT_ADD(p, FRAME_START)) {
+		free(p);
+		return NULL;
+	}
+
 	for (d = data; d < d + nbytes; d++) {
 		uint8_t c = *d;
-		if (c == FRAME_START || c == FRAME_RESET || c == FRAME_ESC) {
+		if (FRAME_ESC_CHECK(c)) {
 			if PKT_ADD(p, FRAME_ESC) {
 				free(p);
 				return NULL;
@@ -149,17 +207,33 @@ static fcb_pkt *convert_to_pkt(void *data, size_t nbytes)
 		}
 	}
 
-	if PKT_ADD(p, crc >> 8) {
+	if PKT_ADD_B(p, crc >> 8) {
 		free(p);
 		return NULL;
 	}
 
-	if PKT_ADD(p, crc & 0xff) {
+	if PKT_ADD_B(p, crc & 0xff) {
+		free(p);
+		return NULL;
+	}
+
+	if (PKT_ADD(p, FRAME_START)) {
 		free(p);
 		return NULL;
 	}
 
 	return p;
+}
+
+ssize_t fcb_send(struct fcb_ctx *ctx, void *data, size_t nbytes)
+{
+	fcb_pkt *pk = convert_to_pkt(data, nbytes);
+	if (!pk)
+		return -1;
+
+	list_add(&pk->l, ctx->out.pkts);
+
+	return fcb_advance_out(ctx);
 }
 
 ssize_t fcb_recv(struct fcb_ctx *ctx, void *data, size_t nbytes)
