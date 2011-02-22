@@ -39,18 +39,18 @@ static void ctx_out_open(struct fcb_ctx_out *ci)
 	ci->crc = CRC_INIT;
 }
 
-typedef struct fcb_ctx {
-	int fd;
-	struct frame_ctx_out out;
-	struct frame_ctx_in in;
-} fcb_ctx;
-
 static void ctx_in_open(struct fcb_ctx_in *ci)
 {
 	ci->start = false;
 	ci->esc = false;
 	ci->crc = CRC_INIT;
 }
+
+typedef struct fcb_ctx {
+	int fd;
+	struct frame_ctx_out out;
+	struct frame_ctx_in in;
+} fcb_ctx;
 
 int fcb_open(struct fcb_ctx *ctx, int fd)
 {
