@@ -46,9 +46,6 @@
 #define DBG_RX (DBG_RX_ISR | DBG_RX_MAIN)
 
 #define DBG_MASK 0
-#if DBG_MASK
-# define DEBUG 1
-#endif
 
 #if DBG_MASK
 # define dbgprintf(sub, fmt, ...) do {		\
@@ -92,8 +89,7 @@ struct packet_buf {
 static struct packet_buf rx, tx;
 
 #if defined(AVR)
-/* {{ DEBUG */
-# ifdef DEBUG
+# if DBG_MASK
 static int usart0_putchar_direct(char c, FILE *stream) {
 	if (c == '\n')
 		putc('\r', stream);
@@ -135,7 +131,7 @@ static FILE usart0_io_direct =
 
 #else /* !defined(AVR) */
 
-# ifdef DEBUG
+# if DBG_MASK 
 #  define print_wait()
 # endif
 
@@ -156,7 +152,7 @@ static FILE usart0_io_direct =
 #endif
 
 
-#ifdef DEBUG
+#if DBG_MASK
 static void print_packet_buf(struct packet_buf *b)
 {
 	printf("head %02d  tail %02d  p_idx(%d) ", b->head,
@@ -185,7 +181,7 @@ void frame_timeout(void)
 	print_packet_buf(&rx);
 	printf(" }}\n");
 }
-#endif /* defined(DEBUG) */
+#endif /* DBG_MASK */
 
 /*** Reception of Data ***/
 /** receive: consumer, modifies tail **/
@@ -718,7 +714,7 @@ static void usart0_init(void)
 		| (0 << UCSZ02);
 
 	/* XXX: debugging */
-# if defined(DEBUG)
+# if DBG_MASK
 	stdout = stderr = &usart0_io_direct;
 # endif
 }

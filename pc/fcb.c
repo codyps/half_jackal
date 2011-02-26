@@ -83,37 +83,40 @@ static int out_update(fcb_ctx *ctx)
 static int fcb_advance(fcb_ctx *ctx)
 {
 	struct pollfd pfd = { ctx.fd, POLLOUT | POLLIN, 0 };
-	int r = poll(&pfd, 1, 0);
-	if (r > 0) {
-		/* we can do something */
+	for (;;) {
+		int r = poll(&pfd, 1, 0);
+		if (r > 0) {
+			/* we can do something */
 
-		if (pfd.revents & POLLNVAL) {
+			if (pfd.revents & POLLNVAL) {
+				return -1;
+			}
 
+			if (pfd.revents & POLLERR) {
+				return -2;
+			}
+
+			if (pfd.revents & POLLHUP) {
+				return -3;
+			}
+
+			if (pfd.revents & POLLOUT) {
+				/* do output update */
+				return out_update(ctx);
+			}
+
+			if (pfd.revents & POLLIN) {
+				/* do input update */
+				return in_update(ctx);
+			}
+
+		} else if (r < 0) {
+			/* error */
+			return r;
+		} else {
+			/* can't do anything */
+			return 0;
 		}
-
-		if (pfd.revents & POLLERR) {
-
-		}
-
-		if (pfd.revents & POLLHUP) {
-
-		}
-
-		if (pfd.revents & POLLOUT) {
-			/* do output update */
-			return out_update(ctx);
-		}
-
-		if (pfd.revents & POLLIN) {
-			/* do input update */
-			return in_update(ctx);
-		}
-
-	} else if (r < 0) {
-		/* error */
-		return r;
-	} else {
-		/* can't do anything */
 	}
 	return 0;
 }
