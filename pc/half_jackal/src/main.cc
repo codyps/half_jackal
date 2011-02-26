@@ -10,53 +10,13 @@
 void send_thread(boost::asio::serial_port port)
 {
 	for(;;) {
+		/* TODO: */
 	}
 }
 
 void recv_thread(boost::asio::serial_port port)
 {
-	for(;;) {
-	}
-}
-
-boost::asio::serial_port_base::parity get_parity(std::string &str)
-{
-	if (str == "even")
-		return boost::asio::serial_port_base::parity::flow_control::even;
-	if (str == "odd")
-		return boost::asio::serial_port_base::parity::flow_control::odd;
-	return boost::asio::serial_port_base::parity::flow_control::none;
-}
-
-int main(int argc, char **argv)
-{
-	ros::init(argc, argv, "half_jackal");
-
-	ros::NodeHandle n;
-	ros::NodeHandle n_priv("~");
-
-	std::string serial_port
-	unsigned int baud;
-	if (!n_priv.getParam("serial_port", serial_port)) {
-		ROS_ERROR("no serial port specified for param \"serial_port\"");
-		return -1;
-	}
-
-	n_priv.param("baud", baud, 57200);
-	n_priv.param("parity", parity, "odd");
-
-	boost::asio::io_service io;
-	boost::asio::serial_port port(io, serial_port);
-
-	port.set_option(boost::asio::serial_port_base::baud_rate(baud));
-	port.set_option(get_parity(parity));
-
-	ros::Publisher a_current = n.advertise<std_msgs::Int>("a/current", 50);
-	ros::Publisher b_current = n.advertise<std_msgs::Int>("b/current", 50);
-
-	ros::Publisher odom = n.advertise<nav_msgs::Odometry>("odom", 50);
-	tf::TransformBroadcaster odom_broadcaster;
-
+	/* TODO: */
 	double x = 0.0;
 	double y = 0.0;
 	double th = 0.0;
@@ -123,6 +83,57 @@ int main(int argc, char **argv)
 		last_time = current_time;
 		r.sleep();
 	}
+}
+
+boost::asio::serial_port_base::parity get_parity(std::string &str)
+{
+	if (str == "even")
+		return boost::asio::serial_port_base::parity::flow_control::even;
+	if (str == "odd")
+		return boost::asio::serial_port_base::parity::flow_control::odd;
+	return boost::asio::serial_port_base::parity::flow_control::none;
+}
+
+void direction_sub(const std_msgs::String::ConstPtr& msg)
+{
+	/* TODO: */
+}
+
+int main(int argc, char **argv)
+{
+	ros::init(argc, argv, "half_jackal");
+
+	ros::NodeHandle n;
+	ros::NodeHandle n_priv("~");
+
+	std::string serial_port
+	unsigned int baud;
+	if (!n_priv.getParam("serial_port", serial_port)) {
+		ROS_ERROR("no serial port specified for param \"serial_port\"");
+		return -1;
+	}
+
+	n_priv.param("baud", baud, 57200);
+	n_priv.param("parity", parity, "odd");
+
+	boost::asio::io_service io;
+	boost::asio::serial_port port(io, serial_port);
+
+	port.set_option(boost::asio::serial_port_base::baud_rate(baud));
+	port.set_option(get_parity(parity));
+
+	ros::Publisher a_current = n.advertise<std_msgs::Int>("a/current", 50);
+	ros::Publisher b_current = n.advertise<std_msgs::Int>("b/current", 50);
+
+	ros::Publisher odom = n.advertise<nav_msgs::Odometry>("odom", 50);
+	tf::TransformBroadcaster odom_broadcaster;
+
+	ros::Subscriber n.subscribe("direction", 1, direction_sub);
+
+	boost::thread send_th(send_thread, port);
+	boost::thread recv_th(recv_thread, port);
+
+	ros::spin();
 
 	return 0;
 }
