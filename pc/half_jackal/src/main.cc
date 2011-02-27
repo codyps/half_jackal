@@ -7,16 +7,34 @@
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
 
-void send_thread(boost::asio::serial_port port)
+#include <termios.h>
+#include <unistd.h>
+
+static int serial_conf(int fd, speed_t speed)
 {
-	for(;;) {
-		/* TODO: */
-	}
+	struct termios t;
+	int ret = tcgetattr(fd, &t);
+
+	if (ret < 0)
+		return ret;
+
+	ret = cfsetispeed(&t, speed);
+	if (ret < 0)
+		return ret;
+
+	ret = cfsetospeed(&t, speed);
+	if (ret < 0)
+		return ret;
+
+
+	t.c_cflag |= PARENB | PARODD;
+
+	return tcsetattr(fd, TCSANOW, &t);
 }
 
-void recv_thread(boost::asio::serial_port port)
+static void recv_thread(FILE *sf)
 {
-	/* TODO: */
+	/* TODO: this is presently example code. */
 	double x = 0.0;
 	double y = 0.0;
 	double th = 0.0;
@@ -85,18 +103,18 @@ void recv_thread(boost::asio::serial_port port)
 	}
 }
 
-boost::asio::serial_port_base::parity get_parity(std::string &str)
+void compute_motors(struct hjb_pkt_set_speed *ss,
+		const geometry_msgs::Twist::ConstPtr& msg)
 {
-	if (str == "even")
-		return boost::asio::serial_port_base::parity::flow_control::even;
-	if (str == "odd")
-		return boost::asio::serial_port_base::parity::flow_control::odd;
-	return boost::asio::serial_port_base::parity::flow_control::none;
+	/* TODO: impliment */
 }
 
-void direction_sub(const std_msgs::String::ConstPtr& msg)
+/* direction_sub - subscriber callback for a direction message */
+static void direction_sub(const geometry_msgs::Twist::ConstPtr& msg, FILE *sf)
 {
-	/* TODO: */
+	struct hjb_pkt_set_speed ss;
+	compute_motors(&ss, msg);
+	frame_send(sf, &ss, sizeof(ss));
 }
 
 int main(int argc, char **argv)
@@ -107,20 +125,22 @@ int main(int argc, char **argv)
 	ros::NodeHandle n_priv("~");
 
 	std::string serial_port
-	unsigned int baud;
 	if (!n_priv.getParam("serial_port", serial_port)) {
 		ROS_ERROR("no serial port specified for param \"serial_port\"");
 		return -1;
 	}
 
-	n_priv.param("baud", baud, 57200);
-	n_priv.param("parity", parity, "odd");
+	int sfd = open(serial_port, O_RDWR);
+	if (sfd < 0) {
+		ROS_ERROR("open: %s: %s", serial_port, strerror(errno));
+		return -1;
+	}
 
-	boost::asio::io_service io;
-	boost::asio::serial_port port(io, serial_port);
-
-	port.set_option(boost::asio::serial_port_base::baud_rate(baud));
-	port.set_option(get_parity(parity));
+	int ret = serial_conf(sfd, B57600);
+	if (ret < 0) {
+		ROS_ERROR("serial_conf: %s: %s", serial_port, strerror(errno));
+		return -1;
+	}
 
 	ros::Publisher a_current = n.advertise<std_msgs::Int>("a/current", 50);
 	ros::Publisher b_current = n.advertise<std_msgs::Int>("b/current", 50);
@@ -128,10 +148,16 @@ int main(int argc, char **argv)
 	ros::Publisher odom = n.advertise<nav_msgs::Odometry>("odom", 50);
 	tf::TransformBroadcaster odom_broadcaster;
 
-	ros::Subscriber n.subscribe("direction", 1, direction_sub);
 
-	boost::thread send_th(send_thread, port);
-	boost::thread recv_th(recv_thread, port);
+	FILE *sf = fdopen(sfd, "a+")
+	if (!sf) {
+		ROS_ERROR("fdopen: %s: %s", serial_port, strerror(errno));
+		return -1;
+	}
+
+	ros::Subscriber n.subscribe("direction", 1, direction_sub, sf);
+
+	boost::thread recv_th(recv_thread, sf);
 
 	ros::spin();
 
