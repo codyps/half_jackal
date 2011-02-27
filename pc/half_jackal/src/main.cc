@@ -7,6 +7,8 @@
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
 
+#include <frame_async.h>
+
 #include <termios.h>
 #include <unistd.h>
 
