@@ -21,11 +21,9 @@
 	frame_send(&err_pkt, HJA_PL_ERROR);		\
 } while(0)
 
-#define ENC_PC_N 0
 #define ENC_NAME C
 #define ENC_PORT PORT(ENC_NAME)
 #define ENC_ISR PCINT1_vect
-#define ENC_PCINT 1
 #define ENC_PCIE PCIE1
 #define ENC_PCINT_MASK PCMSK1
 
@@ -42,7 +40,7 @@ struct encoder_con {
 #define e_pc_init(pin) do {					\
 	/* set pin as input and unmask in pcint register */	\
 	DDR(ENC_NAME)  &= ~(1 << pin);				\
-	ENC_PCINT_MASK |= (1 << pin);				\
+	ENC_PCINT_MASK |=  (1 << pin);				\
 } while(0)
 
 #define enc_init_1(e) do {	\
