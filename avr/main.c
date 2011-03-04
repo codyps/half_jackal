@@ -60,17 +60,25 @@ static void enc_init(void)
 	PCICR |= (1 << ENC_PCIE);
 }
 
-#define enc_update(e, port, xport) do {					\
-	uint8_t pin = e.a;						\
-	uint8_t pin_other = e.b;					\
-	if (pin & xport || pin_other & xport) {				\
-		/* when both are at the same level, inc positive */	\
-		if (!(pin & port) == !(pin_other & port)) {		\
-			e.ct_p ++;					\
-		} else {						\
-			e.ct_n ++;					\
-		}							\
-	}								\
+#define enc_update(e, port, xport) do { \
+	uint8_t pa = (e).a;		\
+	uint8_t pb = (e).b;		\
+	uint8_t a = !(pa & (port));	\
+	uint8_t b = !(pb & (port));	\
+	if (pa & (xport)) {		\
+		if (a != b) {		\
+			(e).ct_p ++;	\
+		} else {		\
+			(e).ct_n ++;	\
+		}			\
+	}				\
+	if (pb & (xport)) {		\
+		if (a == b) {		\
+			(e).ct_p ++;	\
+		} else {		\
+			(e).ct_n ++;	\
+		}			\
+	}				\
 } while(0)
 
 ISR(ENC_ISR)

@@ -94,7 +94,7 @@ LDFLAGS = $(EXTMEMOPTS) $(LDMAP) $(PRINTF_LIB) $(SCANF_LIB) $(MATH_LIB)
 # Programming support using avrdude. Settings and variables.
 
 AVRDUDE_PROGRAMMER = arduino
-SERIAL=/dev/ttyUSB1
+SERIAL=/dev/ttyUSB0
 AVRDUDE_PORT = -P $(SERIAL) -b 57600
 
 AVRDUDE_WRITE_FLASH = -U flash:w:$(TARGET).u.hex
@@ -225,7 +225,6 @@ extcoff: $(TARGET).extcof
 %.S.o: %.S
 	$(CC) -c $(ALL_ASFLAGS) $< -o $@
 
-
 # Target: clean project.
 %.clean :
 	$(RM) $*.hex $*.eep $*.cof $*.elf $*.map $*.sym $*.elf.lss
@@ -250,4 +249,4 @@ depend:
 .PHONY:	all build elf hex eep lss sym program coff extcoff clean depend \
 	rebuild %.clean
 
--include *.d
+-include $(SRC:=.d)
