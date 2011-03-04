@@ -58,6 +58,26 @@ static void enc_init(void)
 	PCICR |= (1 << ENC_PCIE);
 }
 
+#define enc_isr_off() do {		\
+	PCICR &= ~(1 << ENC_PCIE);	\
+	barrier();			\
+} while(0)
+
+#define enc_isr_on() do {		\
+	PCICR |= (1 << ENC_PCIE);	\
+	barrier();			\
+} while(0)
+
+static uint32_t enc_get(uint8_t i)
+{
+	enc_isr_off();
+	uint32_t p = ec_data[i].ct_p;
+	uint32_t n = ec_data[i].ct_n;
+	enc_isr_on();
+
+	return p - n;
+}
+
 #define enc_update(e, port, xport) do { \
 	uint8_t pa = (e).a;		\
 	uint8_t pb = (e).b;		\
@@ -142,6 +162,8 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 		info.b.current = htons(vals[1]);
 		info.a.pwr = htons(motor_pwr[0]);
 		info.b.pwr = htons(motor_pwr[1]);
+		info.a.enc_ct = htonl(enc_get(0));
+		info.a.enc_ct = htonl(enc_get(1));
 
 		frame_send(&info, HJA_PL_INFO);
 		break;
