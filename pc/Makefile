@@ -3,7 +3,7 @@ RM = rm -f
 
 TARGET = hdlc_frame
 
-SRC = main.c frame_async.c
+SRC = main.c frame_async.c term.c
 
 CFLAGS = -ggdb
 override CFLAGS += -Wall -pipe
