@@ -11,7 +11,7 @@
 #include "frame_async.h"
 #include "../hj_proto.h"
 
-#include "term.h"
+#include "term_open.h"
 #include "error_m.h"
 
 struct bytebuf {
