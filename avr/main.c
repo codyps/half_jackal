@@ -17,7 +17,7 @@
 
 #define HJ_SEND_ERROR(errnum) do {			\
 	struct hja_pkt_error err_pkt =			\
-		HJA_PKT_ERROR_INITIALIZAER(errnum);	\
+		HJA_PKT_ERROR_INITIALIZER(errnum);	\
 	frame_send(&err_pkt, HJA_PL_ERROR);		\
 } while(0)
 
@@ -33,8 +33,8 @@ struct encoder_con {
 	uint32_t ct_p;
 	uint32_t ct_n;
 } static ec_data [] = {
-	{ PC4, PC5, 0}, // PCINT12, PCINT13
-	{ PC2, PC3, 0}  // PCINT10, PCINT11
+	{ PC4, PC5, 0, 0}, // PCINT12, PCINT13
+	{ PC2, PC3, 0, 0}  // PCINT10, PCINT11
 };
 
 #define e_pc_init(pin) do {					\
@@ -70,9 +70,10 @@ static void enc_init(void)
 
 static uint32_t enc_get(uint8_t i)
 {
+	uint32_t p, n;
 	enc_isr_off();
-	uint32_t p = ec_data[i].ct_p;
-	uint32_t n = ec_data[i].ct_n;
+	p = ec_data[i].ct_p;
+	n = ec_data[i].ct_n;
 	enc_isr_on();
 
 	return p - n;
@@ -101,6 +102,7 @@ static uint32_t enc_get(uint8_t i)
 
 ISR(ENC_ISR)
 {
+	puts("ISR");
 	static uint8_t old_port;
 
 	uint8_t port = ENC_PORT;
@@ -196,10 +198,10 @@ static void wdt_progress(void)
 	if (!(WDTCSR & (1 << WDIE))) {
 		/* enable our interrupt again so we
 		 * don't reset on the next expire */
-		cli();
-		WDTCSR = (1 << WDCE) | (1 << WDE) | WDT_CSRVAL;
-		WDTCSR = WDT_CSRVAL;
-		sei();
+		ATOMIC_BLOCK(ATOMIC_FORCEON) {
+			WDTCSR = (1 << WDCE) | (1 << WDE) | WDT_CSRVAL;
+			WDTCSR = WDT_CSRVAL;
+		}
 	}
 }
 
@@ -220,6 +222,9 @@ void main(void)
 	mshb_init();
 	enc_init();
 	sei();
+
+	HJ_SEND_ERROR(10);
+
 	for(;;) {
 		uint8_t buf[HJ_PL_MAX];
 		uint8_t len = frame_recv_copy(buf, sizeof(buf));

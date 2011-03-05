@@ -45,7 +45,7 @@
 #define DBG_TX (DBG_TX_ISR | DBG_TX_MAIN)
 #define DBG_RX (DBG_RX_ISR | DBG_RX_MAIN)
 
-#define DBG_MASK 0
+#define DBG_MASK 0x0010
 
 #if DBG_MASK
 # define dbgprintf(sub, fmt, ...) do {		\
@@ -131,7 +131,7 @@ static FILE usart0_io_direct =
 
 #else /* !defined(AVR) */
 
-# if DBG_MASK 
+# if DBG_MASK
 #  define print_wait()
 # endif
 
@@ -152,7 +152,7 @@ static FILE usart0_io_direct =
 #endif
 
 
-#if DBG_MASK
+#if (DBG_MASK)
 static void print_packet_buf(struct packet_buf *b)
 {
 	printf("head %02d  tail %02d  p_idx(%d) ", b->head,
@@ -173,7 +173,7 @@ static void print_packet_buf(struct packet_buf *b)
 	}
 }
 
-void frame_timeout(void)
+static unused void frame_timeout(void)
 {
 	printf("\n{{ tx: ");
 	print_packet_buf(&tx);
