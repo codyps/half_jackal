@@ -1,6 +1,8 @@
 #include <string.h>
+
 #include <util/delay.h>
 #include <util/crc16.h>
+#include <util/atomic.h>
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -23,9 +25,10 @@
 
 #define ENC_NAME C
 #define ENC_PORT PORT(ENC_NAME)
+#define ENC_PIN PIN(ENC_NAME)
 #define ENC_ISR PCINT1_vect
 #define ENC_PCIE PCIE1
-#define ENC_PCINT_MASK PCMSK1
+#define ENC_PCMSK PCMSK1
 
 struct encoder_con {
 	uint8_t a;
@@ -40,7 +43,7 @@ struct encoder_con {
 #define e_pc_init(pin) do {					\
 	/* set pin as input and unmask in pcint register */	\
 	DDR(ENC_NAME)  &= ~(1 << pin);				\
-	ENC_PCINT_MASK |=  (1 << pin);				\
+	ENC_PCMSK |=  (1 << pin);				\
 } while(0)
 
 #define enc_init_1(e) do {	\
@@ -50,7 +53,7 @@ struct encoder_con {
 
 static void enc_init(void)
 {
-	ENC_PCINT_MASK = 0;
+	ENC_PCMSK = 0;
 
 	enc_init_1(ec_data[0]);
 	enc_init_1(ec_data[1]);
@@ -105,7 +108,7 @@ ISR(ENC_ISR)
 	puts("ISR");
 	static uint8_t old_port;
 
-	uint8_t port = ENC_PORT;
+	uint8_t port = ENC_PIN;
 	uint8_t xport = port ^ old_port;
 
 	enc_update(ec_data[0], port, xport);
@@ -220,7 +223,7 @@ void main(void)
 	adc_init();
 	led_init();
 	mshb_init();
-	enc_init();
+	//enc_init();
 	sei();
 
 	HJ_SEND_ERROR(10);
