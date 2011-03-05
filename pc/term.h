@@ -3,6 +3,14 @@
 
 #include <stdio.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 FILE *term_open(char const *fname);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
