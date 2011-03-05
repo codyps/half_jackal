@@ -51,7 +51,7 @@ struct hja_pkt_timeout {
 
 struct hja_pkt_error {
 	struct hj_pktc_header head;
-	uint8_t errno;
+	uint8_t errnum;
 	uint16_t line;
 	char file[6];
 } __packed;
@@ -74,15 +74,6 @@ union hj_pkt_union {
 	struct hjb_pkt_req_info e;
 };
 
-#define MAX(x, y) ((x) > (y)?(x):(y))
-#define MAX4(a, b, c, d) MAX(MAX(a,b),MAX(c,d))
-#define MAX6(a,b,c,d,e,f) MAX(MAX4(a,b,c,d),MAX(e,f))
-#define MAX8(a,b,c,d,e,f,g,h) MAX(MAX4(a,b,c,d),MAX4(e,f,g,h))
-
-#define MIN(x,y) ((x) < (y)?(x):(y))
-#define MIN4(a, b, c, d) MIN(MIN(a,b),MIN(c,d))
-#define MIN6(a,b,c,d,e,f) MIN(MIN4(a,b,c,d),MIN(e,f))
-#define MIN8(a,b,c,d,e,f,g,h) MIN(MIN4(a,b,c,d),MIN4(e,f,g,h))
 
 #define HJ_PL_MIN sizeof(struct hj_pktc_header)
 #define HJ_PL_MAX sizeof(union hj_pkt_union)
@@ -98,7 +89,7 @@ enum hj_pkt_type {
 #define HJA_PKT_TIMEOUT_INITIALIZER { .head = { .type = HJA_PT_TIMEOUT } }
 #define HJA_PKT_INFO_INITIALIZER { .head = { .type = HJA_PT_INFO } }
 #define HJA_PKT_ERROR_INITIALIZER(err) { .head = { .type = HJA_PT_ERROR }, \
-	.line = htons(__LINE__), .file = __FILE__, .errno = htons(err) }
+	.line = htons(__LINE__), .file = __FILE__, .errnum = htons(err) }
 #define HJB_PKT_REQ_INFO_INITIALIZER { .head = { .type = HJB_PT_REQ_INFO } }
 #define HJB_PKT_SET_SPEED_INITIALIZER(a,b)		\
 	{ .head = { .type = HJB_PT_SET_SPEED},		\
