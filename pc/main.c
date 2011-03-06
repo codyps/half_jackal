@@ -127,6 +127,25 @@ int main(int argc, char **argv)
 
 			break;
 		}
+		case HJA_PT_ERROR: {
+			fprintf(stderr, "HJ_PT_ERROR:");
+			if (len != HJA_PL_ERROR) {
+				fprintf(stderr, "len = %zu, expected %d\n",
+						len, HJA_PL_ERROR);
+				continue;
+			}
+			struct hja_pkt_error *e = (typeof(e)) buf;
+
+			char file[sizeof(e->file) + 1];
+			strncpy(file, e->file, sizeof(e->file));
+			file[sizeof(e->file)] = 0;
+
+			fprintf(stderr, "file: %s, line: %"
+					PRIu16", errnum: %"PRIu8"\n",
+				file, ntohs(e->line), ntohs(e->errnum));
+			break;
+		}
+
 		default: {
 			fprintf(stderr, "recieved unknown pt %x, len %zu\n",
 					h->type, len );
