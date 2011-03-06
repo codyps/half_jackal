@@ -85,12 +85,12 @@ int main(int argc, char **argv)
 
 	char buf[1024];
 	for(;;) {
-		size_t len = frame_recv(sf, buf, sizeof(buf));
+		ssize_t len = frame_recv(sf, buf, sizeof(buf));
 		struct hj_pktc_header *h = (typeof(h)) buf;
 
 		if (len < 0) {
-			fprintf(stderr, "frame_recv => %zu\n", len);
-			continue;
+			fprintf(stderr, "frame_recv => %zd\n", len);
+			exit(EXIT_FAILURE);
 		}
 
 		switch(h->type) {

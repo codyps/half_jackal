@@ -53,8 +53,9 @@ ssize_t frame_recv(FILE *in, void *vbuf, size_t nbytes)
 	for(i = 0;;) {
 		int data = fgetc(in);
 
-		if (data == EOF)
-			break;
+		if (data == EOF) {
+			return EOF;
+		}
 
 		if (data < 0) {
 			return data;
