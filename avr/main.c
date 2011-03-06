@@ -30,20 +30,22 @@
 #define ENC_PCIE PCIE1
 #define ENC_PCMSK PCMSK1
 
+#define ENC_IN(a, b) { 1 << (a), 1 << (b) }
 struct encoder_con {
 	uint8_t a;
 	uint8_t b;
 	uint32_t ct_p;
 	uint32_t ct_n;
 } static ec_data [] = {
-	{ PC4, PC5, 0, 0}, // PCINT12, PCINT13
-	{ PC2, PC3, 0, 0}  // PCINT10, PCINT11
+	ENC_IN(PC4, PC5), // PCINT12, PCINT13
+	ENC_IN(PC2, PC3)  // PCINT10, PCINT11
 };
+
 
 #define e_pc_init(pin) do {					\
 	/* set pin as input and unmask in pcint register */	\
-	DDR(ENC_NAME)  &= ~(1 << pin);				\
-	ENC_PCMSK |=  (1 << pin);				\
+	DDR(ENC_NAME)  &= ~(pin);				\
+	ENC_PCMSK |=  (pin);				\
 } while(0)
 
 #define enc_init_1(e) do {	\
@@ -105,7 +107,6 @@ static uint32_t enc_get(uint8_t i)
 
 ISR(ENC_ISR)
 {
-	puts("ISR");
 	static uint8_t old_port;
 
 	uint8_t port = ENC_PIN;
@@ -113,6 +114,7 @@ ISR(ENC_ISR)
 
 	enc_update(ec_data[0], port, xport);
 	enc_update(ec_data[1], port, xport);
+
 }
 
 static int16_t motor_pwr[2];
@@ -223,7 +225,7 @@ void main(void)
 	adc_init();
 	led_init();
 	mshb_init();
-	//enc_init();
+	enc_init();
 	sei();
 
 	HJ_SEND_ERROR(10);
