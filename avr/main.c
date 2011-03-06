@@ -183,7 +183,7 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 }
 
 #define WDT_PRESCALE ((0 << WDP3) | (1 << WDP2) | (0 << WDP1) | (1 << WDP0))
-#define WDT_CSRVAL ((0 << WDE) | (1 << WDIE) | WDT_PRESCALE)
+#define WDT_CSRVAL ((1 << WDE) | (1 << WDIE) | WDT_PRESCALE)
 
 static void wdt_setup(void)
 {
