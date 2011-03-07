@@ -19,9 +19,14 @@ struct hj_pktc_header {
 	uint8_t type;
 } __packed;
 
+struct hj_pktc_enc {
+	uint32_t p;
+	uint32_t n;
+} __packed;
+
 struct hj_pktc_motor_info {
 	uint16_t current;
-	uint32_t enc_ct;
+	struct hj_pktc_enc e;
 	int16_t pwr;
 	int16_t vel;
 } __packed;
@@ -39,10 +44,16 @@ struct hjb_pkt_req_info {
 	struct hj_pktc_header head;
 } __packed;
 
+/* allow decrimenting the encoders to prevent overflow */
+struct hjb_pkt_enc_dec {
+	struct hj_pktc_header head;
+	struct hj_pktc_enc e[2];
+} __packed;
+
 /** packets returned FROM the hj. **/
 struct hja_pkt_info {
 	struct hj_pktc_header head;
-	struct hj_pktc_motor_info a, b;
+	struct hj_pktc_motor_info m[2];
 } __packed;
 
 struct hja_pkt_timeout {
@@ -72,6 +83,7 @@ union hj_pkt_union {
 	struct hja_pkt_error c;
 	struct hjb_pkt_set_speed d;
 	struct hjb_pkt_req_info e;
+	struct hjb_pkt_enc_dec f;
 };
 
 
@@ -83,7 +95,8 @@ enum hj_pkt_type {
 	HJA_PT_INFO,
 	HJA_PT_ERROR,
 	HJB_PT_SET_SPEED,
-	HJB_PT_REQ_INFO
+	HJB_PT_REQ_INFO,
+	HJB_PT_ENC_DEC
 };
 
 #define HJA_PKT_TIMEOUT_INITIALIZER { .head = { .type = HJA_PT_TIMEOUT } }

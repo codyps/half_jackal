@@ -73,15 +73,22 @@ static void enc_init(void)
 	barrier();			\
 } while(0)
 
-static uint32_t enc_get(uint8_t i)
+static void enc_get(struct hj_pktc_enc *e, uint8_t i)
 {
-	uint32_t p, n;
 	enc_isr_off();
-	p = ec_data[i].ct_p;
-	n = ec_data[i].ct_n;
+	e->p = htonl(ec_data[i].ct_p);
+	e->n = htonl(ec_data[i].ct_n);
 	enc_isr_on();
+}
 
-	return p - n;
+static void enc_dec(uint8_t i, struct hj_pktc_enc *e)
+{
+	uint32_t p = htonl(e->p);
+	uint32_t n = htonl(e->n);
+	enc_isr_off();
+	ec_data[i].ct_p -= p;
+	ec_data[i].ct_n -= n;
+	enc_isr_on();
 }
 
 #define enc_update(e, port, xport) do { \
@@ -114,7 +121,6 @@ ISR(ENC_ISR)
 
 	enc_update(ec_data[0], port, xport);
 	enc_update(ec_data[1], port, xport);
-
 }
 
 static int16_t motor_pwr[2];
@@ -129,6 +135,15 @@ static void update_vel(uint8_t idx, struct hjb_pkt_set_speed *pkt)
 		mshb_disable(idx);
 	}
 }
+
+static void motor_info_get(struct hj_pktc_motor_info *m, uint16_t current,
+		uint8_t i)
+{
+	m->current = htons(current);
+	m->pwr = htons(motor_pwr[i]);
+	enc_get(&m->e, i);
+}
+
 
 /* return true = failure */
 static bool hj_parse(uint8_t *buf, uint8_t len)
@@ -165,22 +180,34 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 
 		/* send info */
 		struct hja_pkt_info info = HJA_PKT_INFO_INITIALIZER;
-		info.a.current = htons(vals[0]);
-		info.b.current = htons(vals[1]);
-		info.a.pwr = htons(motor_pwr[0]);
-		info.b.pwr = htons(motor_pwr[1]);
-		info.a.enc_ct = htonl(enc_get(0));
-		info.a.enc_ct = htonl(enc_get(1));
+
+		motor_info_get(&info.m[0], vals[0], 0);
+		motor_info_get(&info.m[1], vals[1], 1);
 
 		frame_send(&info, HJA_PL_INFO);
 		break;
 	}
+	case HJB_PT_ENC_DEC: {
+		struct hjb_pkt_enc_dec *ed;
+		if (len != sizeof(ed)) {
+			HJ_SEND_ERROR(1);
+			return true;
+		}
+
+		ed = (typeof(ed)) buf;
+		enc_dec(0, &ed->e[0]);
+		enc_dec(1, &ed->e[1]);
+		break;
+	}
+
 	default:
 		HJ_SEND_ERROR(1);
 		return true;
 	}
 	return false;
 }
+
+
 
 #define WDT_PRESCALE ((0 << WDP3) | (1 << WDP2) | (0 << WDP1) | (1 << WDP0))
 #define WDT_CSRVAL ((0 << WDE) | (1 << WDIE) | WDT_PRESCALE)
