@@ -48,10 +48,11 @@ void send_req_info(FILE *out)
 
 void print_hj_motor_info(struct hj_pktc_motor_info *inf, FILE *out)
 {
-	fprintf(out, "current: %"PRIu16" enc_ct: %"PRIu32
-			" pwr: %"PRIi16" vel: %"PRIi16,
+	fprintf(out, "current: %"PRIu16" enc_p: %"PRIu32
+			" enc_n: %"PRIu32" pwr: %"PRIi16" vel: %"PRIi16,
 			ntohs(inf->current),
-			ntohl(inf->enc_ct),
+			ntohl(inf->e.p),
+			ntohl(inf->e.n),
 			(int16_t)ntohs(inf->pwr),
 			(int16_t)ntohs(inf->vel));
 }
@@ -114,9 +115,9 @@ int main(int argc, char **argv)
 			}
 			struct hja_pkt_info *inf = (typeof(inf)) buf;
 			fprintf(stderr, "\n\ta: ");
-			print_hj_motor_info(&inf->a, stderr);
+			print_hj_motor_info(&inf->m[0], stderr);
 			fprintf(stderr, "\n\tb: ");
-			print_hj_motor_info(&inf->b, stderr);
+			print_hj_motor_info(&inf->m[1], stderr);
 			fprintf(stderr, "\n");
 
 			struct hjb_pkt_set_speed ss =
