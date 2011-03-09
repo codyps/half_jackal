@@ -201,7 +201,7 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 	}
 
 	default:
-		HJ_SEND_ERROR(1);
+		HJ_SEND_ERROR(head->type);
 		return true;
 	}
 	return false;
