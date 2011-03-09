@@ -26,6 +26,10 @@ static int serial_conf(int fd, speed_t speed)
 	if (ret < 0)
 		return ret;
 
+	cfmakeraw(&t);
+	t.c_cc[VMIN] = 1;
+	t.c_cc[VTIME] = 0;
+
 	/* odd parity */
 	t.c_cflag |= PARENB | PARODD;
 
@@ -38,6 +42,8 @@ static int serial_conf(int fd, speed_t speed)
 
 	/* ignore control lines */
 	t.c_cflag |= CLOCAL;
+
+	/* hupcl */
 
 	return tcsetattr(fd, TCSAFLUSH, &t);
 }
