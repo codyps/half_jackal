@@ -21,6 +21,7 @@ ASRC =
 OPT = s
 
 srcdir = .
+VPATH = $(srcdir) $(srcdir)/muc
 
 # Name of this Makefile (used for "make depend").
 MAKEFILE = Makefile

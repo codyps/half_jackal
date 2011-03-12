@@ -44,8 +44,8 @@ struct encoder_con {
 
 #define e_pc_init(pin) do {					\
 	/* set pin as input and unmask in pcint register */	\
-	DDR(ENC_NAME)  &= ~(pin);				\
-	ENC_PCMSK |=  (pin);				\
+	DDR(ENC_NAME) &= ~(pin);				\
+	ENC_PCMSK     |=  (pin);				\
 } while(0)
 
 #define enc_init_1(e) do {	\
@@ -83,8 +83,8 @@ static void enc_get(struct hj_pktc_enc *e, uint8_t i)
 
 static void enc_dec(uint8_t i, struct hj_pktc_enc *e)
 {
-	uint32_t p = htonl(e->p);
-	uint32_t n = htonl(e->n);
+	uint32_t p = ntohl(e->p);
+	uint32_t n = ntohl(e->n);
 	enc_isr_off();
 	ec_data[i].ct_p -= p;
 	ec_data[i].ct_n -= n;

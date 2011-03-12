@@ -1,3 +1,6 @@
 [submodule "avr/muc"]
 	path = avr/muc
 	url = https://github.com/jmesmon/libmuc.git
+[submodule "avr/penny"]
+	path = avr/penny
+	url = https://github.com/jmesmon/libpenny
