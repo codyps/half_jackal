@@ -44,7 +44,11 @@ struct hjb_pkt_req_info {
 	struct hj_pktc_header head;
 } __packed;
 
-/* allow decrimenting the encoders to prevent overflow */
+/* allow decrimenting the encoders to prevent overflow
+ *
+ * XXX: this is really a bad idea, as we have no confirmation that the packet
+ * was properly recieved other than by detecting an approximate drop in encoder
+ * tics in the next info packet. */
 struct hjb_pkt_enc_dec {
 	struct hj_pktc_header head;
 	struct hj_pktc_enc e[2];
