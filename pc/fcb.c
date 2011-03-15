@@ -1,3 +1,5 @@
+#include <stdint.h>
+#include <stdbool.h>
 
 /**
  * container_of - cast a member of a structure out to the containing structure
@@ -20,6 +22,8 @@ typedef struct fcb_pkt {
 	size_t cur_pos;
 	uint8_t data[];
 } fcb_pkt;
+
+#define pkt_from_list(list) container_of(list, struct fcb_pkt, l)
 
 struct frame_ctx_in {
 	bool start;
@@ -52,6 +56,14 @@ typedef struct fcb_ctx {
 	struct frame_ctx_in in;
 } fcb_ctx;
 
+/*
+ * fcb_open - initalizes the given ctx with the given fd.
+ *
+ * @ctx - an opened ctx
+ * @fd  - a file descriptor which supports poll, read, and write.
+ *
+ * return - failure <0, success 0.
+ */
 int fcb_open(struct fcb_ctx *ctx, int fd)
 {
 	ctx->fd = fd;
@@ -62,11 +74,30 @@ int fcb_open(struct fcb_ctx *ctx, int fd)
 	return 0;
 }
 
+/*
+ * in_update - called when the fd has data waiting to be 'read'. Attempts to
+ *             read ths data, either continuing an in progress packet and/or
+ *             beginning a new one.
+ *
+ * @ctx - the fcb_ctx to operate on
+ *
+ * return - on error <0, success 0.
+ */
 static int in_update(fcb_ctx *ctx)
 {
-	
+	return -EINVAL;
 }
 
+/*
+ * out_update - called when we know the fd has the ability to accept data via
+ *              'write'. If we have any data in the output queue, it attempts
+ *              to write a single packet (or remainder of a packet) prior to
+ *              returning.
+ *
+ * @ctx - the fcb_ctx to operate on
+ *
+ * return - on error <0, on success 0.
+ */
 static int out_update(fcb_ctx *ctx)
 {
 	if (list_empty(ctx->out.l))
@@ -74,12 +105,18 @@ static int out_update(fcb_ctx *ctx)
 
 	fcb_pkt *cur = list_first_entry(&ctx->out.l, fcb_pkt, l);
 
-	/* resume or begin writing out `cur' */
-
-
+	/* FIXME: resume or begin writing out `cur' */
 }
 
-/* attempt to do some writing of data, if possible */
+/*
+ * fcb_advance - determines (via poll) whether any data can be writen to or
+ *               read from the file descriptor, and then sends and recives the
+ *               maximum amount of data (without blocking on IO).
+ *
+ * @ctx - the fcb_ctx to operate upon.
+ *
+ * return - on error, < 1. On success 0.
+ */
 static int fcb_advance(fcb_ctx *ctx)
 {
 	struct pollfd pfd = { ctx.fd, POLLOUT | POLLIN, 0 };
@@ -87,7 +124,6 @@ static int fcb_advance(fcb_ctx *ctx)
 		int r = poll(&pfd, 1, 0);
 		if (r > 0) {
 			/* we can do something */
-
 			if (pfd.revents & POLLNVAL) {
 				return -1;
 			}
@@ -102,12 +138,20 @@ static int fcb_advance(fcb_ctx *ctx)
 
 			if (pfd.revents & POLLOUT) {
 				/* do output update */
-				return out_update(ctx);
+				/* FIXME: return value? */
+				int r;
+				if ((r = out_update(ctx))) {
+					return r;
+				}
 			}
 
 			if (pfd.revents & POLLIN) {
 				/* do input update */
-				return in_update(ctx);
+				/* FIXME: return value? */
+				int r;
+				if ((r = in_update(ctx))) {
+					return r;
+				}
 			}
 
 		} else if (r < 0) {
@@ -121,7 +165,11 @@ static int fcb_advance(fcb_ctx *ctx)
 	return 0;
 }
 
-/* allocate and intialize a fcb_pkt with data len = init_sz */
+/*
+ * pkt_mk - allocate and intialize a fcb_pkt with data len = init_sz
+ *
+ * @init_sz - a suggestion for the size of the data[] in fcb_pkt.
+ */
 static fcb_pkt *pkt_mk(size_t init_sz)
 {
 	fcb_pkt *p = malloc(sizeof(*p) + init_sz);
@@ -136,6 +184,14 @@ static fcb_pkt *pkt_mk(size_t init_sz)
 	return p;
 }
 
+/*
+ * pkt_append - given an additional byte, add it to the end of a packet.
+ *
+ * @p - the packet to append the byte to.
+ * @b - the byte to append
+ *
+ * return - the new fcb_pkt on success, NULL on error (with errno set).
+ */
 static fcb_pkt *pkt_append(fcb_pkt *p, uint8_t b)
 {
 	if (p->cur_pos >= p->mem_len) {
@@ -150,14 +206,23 @@ static fcb_pkt *pkt_append(fcb_pkt *p, uint8_t b)
 	return p;
 }
 
+/*
+ * PKT_ADD - try using pkt_append. On success, reassign the packet and return
+ *           false.  on failure, return true without changing p
+ */
 #define PKT_ADD(p, c) ({		\
 	bool fail = false;		\
 	fcb_pkt *np = pkt_append(p, c);	\
 	if (!np)			\
 		fail = true;		\
-	(p) = np;			\
+	else				\
+		(p) = np;		\
 	fail; })
 
+/*
+ * PKT_ADD_B - append data bytes (which need to be escaped) and reasign @p
+ *             properly.
+ */
 #define PKT_ADD_B(p, c) ({			\
 	bool fail = false;			\
 	if (FRAME_ESC_CHECK(c)) {		\
@@ -175,7 +240,14 @@ static fcb_pkt *pkt_append(fcb_pkt *p, uint8_t b)
 	}					\
 	fail;	})
 
-/* Take an outgoing data stream an make it a packet */
+/*
+ * convert_to_pkt - Take an outgoing data stream an make it a packet.
+ *
+ * @data   - raw data to form into the contents of a packet.
+ * @nbytes - the length of @data.
+ *
+ * return  - a fcb_pkt (heap allocated) with the copied contents of @data.
+ */
 static fcb_pkt *convert_to_pkt(void *data, size_t nbytes)
 {
 	/* estimate the packet length. */
@@ -228,6 +300,9 @@ static fcb_pkt *convert_to_pkt(void *data, size_t nbytes)
 	return p;
 }
 
+/*
+ * fcb_send - send a packet.
+ */
 ssize_t fcb_send(struct fcb_ctx *ctx, void *data, size_t nbytes)
 {
 	fcb_pkt *pk = convert_to_pkt(data, nbytes);
@@ -239,19 +314,36 @@ ssize_t fcb_send(struct fcb_ctx *ctx, void *data, size_t nbytes)
 	return fcb_advance_out(ctx);
 }
 
+static int convert_from_pkt(struct fcb_pkt *in_pkt,
+		void *out_data, size_t out_len)
+{
+
+}
+
+/*
+ * fcb_recv - get a packet.
+ */
 ssize_t fcb_recv(struct fcb_ctx *ctx, void *data, size_t nbytes)
 {
+	fcb_advance(ctx);
 	/* if item exsists in queue, pop off.
 	 * otherwise, try and process a recv. If it returns prior to completion,
 	 * return -1?
 	 */
-	if (list_empty(&ctx->in.l)) {
+	if (!list_empty(&ctx->in.l)) {
+		struct list_head *ipl = ctx->in.l.next;
+		list_del(ipl);
+		struct fcb_pkt *pl = pkt_from_list(ipl);
+		convert_from_pkt(pl, data, nbytes);
 	}
 
 
 
 }
 
+/*
+ * fcb_flush - block until the output queue is empty.
+ */
 int fcb_flush(struct fcb_ctx *ctx)
 {
 	/* try to complete all outputs */
