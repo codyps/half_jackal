@@ -17,7 +17,7 @@ struct list_head {
 };
 
 typedef struct fcb_pkt {
-	struct list_head l;
+	struct list_head list;
 	size_t mem_len;
 	size_t cur_pos;
 	uint8_t data[];
@@ -25,22 +25,21 @@ typedef struct fcb_pkt {
 
 #define pkt_from_list(list) container_of(list, struct fcb_pkt, l)
 
-struct frame_ctx_in {
+struct fcb_ctx_in {
 	bool start;
 	bool esc;
 	uint16_t crc;
+	struct fcb_pkt *cur_pkt;
 	struct list_head pkts;
 };
 
-struct frame_ctx_out {
-	bool start;
+struct fcb_ctx_out {
 	struct list_head pkts;
 };
 
 static void ctx_out_open(struct fcb_ctx_out *ci)
 {
-	ci->start = false;
-	ci->crc = CRC_INIT;
+	list_head_init(&ci->pkts);
 }
 
 static void ctx_in_open(struct fcb_ctx_in *ci)
@@ -48,12 +47,15 @@ static void ctx_in_open(struct fcb_ctx_in *ci)
 	ci->start = false;
 	ci->esc = false;
 	ci->crc = CRC_INIT;
+	ci->cur_pkt = NULL;
+
+	list_head_init(&ci->pkts);
 }
 
 typedef struct fcb_ctx {
 	int fd;
-	struct frame_ctx_out out;
-	struct frame_ctx_in in;
+	struct fcb_ctx_out out;
+	struct fcb_ctx_in in;
 } fcb_ctx;
 
 /*
@@ -77,7 +79,8 @@ int fcb_open(struct fcb_ctx *ctx, int fd)
 /*
  * in_update - called when the fd has data waiting to be 'read'. Attempts to
  *             read ths data, either continuing an in progress packet and/or
- *             beginning a new one.
+ *             beginning a new one. When a packet is completed, it should be
+ *             decoded and added to the queue.
  *
  * @ctx - the fcb_ctx to operate on
  *
@@ -85,6 +88,10 @@ int fcb_open(struct fcb_ctx *ctx, int fd)
  */
 static int in_update(fcb_ctx *ctx)
 {
+	/* FIXME: */
+	struct fcb_ctx_in *ic = &ctx->in;
+	
+
 	return -EINVAL;
 }
 
@@ -96,16 +103,35 @@ static int in_update(fcb_ctx *ctx)
  *
  * @ctx - the fcb_ctx to operate on
  *
- * return - on error <0, on success 0.
+ * return - on error <0, on success 0, 1 when no data remains to be outputed.
  */
 static int out_update(fcb_ctx *ctx)
 {
-	if (list_empty(ctx->out.l))
-		return 0;
+	struct fcb_ctx_out *oc = &ctx->out;
+	if (list_empty(oc->l))
+		return 1;
 
-	fcb_pkt *cur = list_first_entry(&ctx->out.l, fcb_pkt, l);
+	fcb_pkt *cur = list_first_entry(&oc->pkts, fcb_pkt, list);
 
-	/* FIXME: resume or begin writing out `cur' */
+	/* resume or begin writing out `cur' */
+
+	/* FIXME: if pkts has only this element, do not attempt to write
+	 * the embeded cancel byte (the last byte in data)
+	 */
+	ssize_t ret = write(ctx->fd, cur->data + cur->cur_pos,
+				cur->len - cur->cur_pos);
+
+	if (ret > 0) {
+		cur->cur_pos += ret;
+		if (cur->cur_pos == cur->len) {
+			/* TODO: remove `cur` from the packet list,
+			 * deallocate */
+		}
+	} else if (ret < 0) {
+		/* TODO: some type of error, handle. */
+	}
+
+	return 0;
 }
 
 /*
@@ -138,9 +164,10 @@ static int fcb_advance(fcb_ctx *ctx)
 
 			if (pfd.revents & POLLOUT) {
 				/* do output update */
-				/* FIXME: return value? */
-				int r;
-				if ((r = out_update(ctx))) {
+				int r = out_update(ctx);
+				if (r == 1) {
+					pfd.events &= ~POLLOUT;
+				} else if (r) {
 					return r;
 				}
 			}
@@ -223,21 +250,21 @@ static fcb_pkt *pkt_append(fcb_pkt *p, uint8_t b)
  * PKT_ADD_B - append data bytes (which need to be escaped) and reasign @p
  *             properly.
  */
-#define PKT_ADD_B(p, c) ({			\
-	bool fail = false;			\
-	if (FRAME_ESC_CHECK(c)) {		\
-		if (PKT_ADD(p, FRAME_ESC)) {	\
-			fail = true;		\
-		} else {			\
-			if (PKT_ADD(p, c)) {	\
-				fail = true;	\
-			}			\
-		}				\
-	} else {				\
-		if (PKT_ADD(p, c)) {		\
-			fail = true;		\
-		}				\
-	}					\
+#define PKT_ADD_B(p, c) ({					\
+	bool fail = false;					\
+	if (FRAME_ESC_CHECK(c)) {				\
+		if (PKT_ADD(p, FRAME_ESC)) {			\
+			fail = true;				\
+		} else {					\
+			if (PKT_ADD(p, c ^ FRAME_ESC_MASK)) {	\
+				fail = true;			\
+			}					\
+		}						\
+	} else {						\
+		if (PKT_ADD(p, c)) {				\
+			fail = true;				\
+		}						\
+	}							\
 	fail;	})
 
 /*
@@ -297,6 +324,11 @@ static fcb_pkt *convert_to_pkt(void *data, size_t nbytes)
 		return NULL;
 	}
 
+	if (PKT_ADD(p, FRAME_CANCEL)) {
+		free(p);
+		return NULL;
+	}
+
 	return p;
 }
 
@@ -314,8 +346,9 @@ ssize_t fcb_send(struct fcb_ctx *ctx, void *data, size_t nbytes)
 	return fcb_advance_out(ctx);
 }
 
-static int convert_from_pkt(struct fcb_pkt *in_pkt,
-		void *out_data, size_t out_len)
+/*
+ * convert_from_pkt - takes raw bytes which form a packet.
+static ssize_t convert_from_pkt(struct fcb_pkt *in_pkt)
 {
 
 }
@@ -334,9 +367,11 @@ ssize_t fcb_recv(struct fcb_ctx *ctx, void *data, size_t nbytes)
 		struct list_head *ipl = ctx->in.l.next;
 		list_del(ipl);
 		struct fcb_pkt *pl = pkt_from_list(ipl);
-		convert_from_pkt(pl, data, nbytes);
+		memcpy(data, pl->data, MIN(pl->len, nbytes));
+		return pl->len;
 	}
 
+	/* TODO: 
 
 
 }
@@ -346,6 +381,7 @@ ssize_t fcb_recv(struct fcb_ctx *ctx, void *data, size_t nbytes)
  */
 int fcb_flush(struct fcb_ctx *ctx)
 {
-	/* try to complete all outputs */
+	/* TODO: try to complete all outputs */
+	return -EINVAL;
 }
 
