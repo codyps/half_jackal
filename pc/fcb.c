@@ -37,6 +37,12 @@ struct fcb_ctx_out {
 	struct list_head pkts;
 };
 
+typedef struct fcb_ctx {
+	int fd;
+	struct fcb_ctx_out out;
+	struct fcb_ctx_in in;
+} fcb_ctx;
+
 static void ctx_out_open(struct fcb_ctx_out *ci)
 {
 	list_head_init(&ci->pkts);
@@ -51,12 +57,6 @@ static void ctx_in_open(struct fcb_ctx_in *ci)
 
 	list_head_init(&ci->pkts);
 }
-
-typedef struct fcb_ctx {
-	int fd;
-	struct fcb_ctx_out out;
-	struct fcb_ctx_in in;
-} fcb_ctx;
 
 /*
  * fcb_open - initalizes the given ctx with the given fd.
@@ -77,22 +77,93 @@ int fcb_open(struct fcb_ctx *ctx, int fd)
 }
 
 /*
+ * clean_pkt - takes the raw packet `in_pkt` and extracts a single packet from
+ *             it, starting processing at cur_pos. `in_pkt` is then modified
+ *             with a new cur pos for where this processing left off.
+ *
+ *             If it finds that no new packets can be extracted, it
+ *             reposistions the still raw data at the beginning of the buffer
+ *             and fixes up the counts.
+ *
+ * @in_pkt: input packet with raw data populating `data`. Requires `cur_pos` be set
+ *          to the posistion where parsing should begin.
+ *
+ * return:  when a new packet has been created: 0.
+ *          when no more packets can be make and no packet has been made: 1.
+ *          error: <0.
+ */
+static int clean_pkt(struct fcb_pkt *in_pkt, struct fcb_pkt **out_pkt)
+{
+	return -EINVAL;
+}
+
+/*
+ * pkt_mk - allocate and intialize a fcb_pkt with data len = init_sz
+ *
+ * @init_sz - a suggestion for the size of the data[] in fcb_pkt.
+ */
+static fcb_pkt *pkt_mk(size_t init_sz)
+{
+	fcb_pkt *p = malloc(sizeof(*p) + init_sz);
+	if (!p)
+		return p;
+
+	p->mem_len = init_sz;
+	p->cur_pos = 0;
+
+	list_head_init(&p->l);
+
+	return p;
+}
+
+/*
  * in_update - called when the fd has data waiting to be 'read'. Attempts to
  *             read ths data, either continuing an in progress packet and/or
  *             beginning a new one. When a packet is completed, it should be
  *             decoded and added to the queue.
  *
- * @ctx - the fcb_ctx to operate on
+ * @ctx:    the fcb_ctx to operate on
  *
- * return - on error <0, success 0.
+ * return:  on error <0, success 0.
  */
 static int in_update(fcb_ctx *ctx)
 {
-	/* FIXME: */
 	struct fcb_ctx_in *ic = &ctx->in;
-	
 
-	return -EINVAL;
+	/* do we currently have an in progress packet allocated? */
+	if (!ic->cur_pkt) {
+		ic->cur_pkt = pkt_mk(1024);
+		if (!ic->cur_pkt)
+			return -ENOMEM;
+	}
+
+	struct fcb_pkt *p = ic->cur_pkt;
+
+	ssize_t ret = read(ctx->fd, p->data + p->cur_pos, p->mem_len - p->cur_pos);
+
+	if (ret <= 0) {
+		/* TODO: some error occured, handle. */
+		return -1;
+	}
+
+	p->len += ret;
+
+	/* Keep processing while data remains in cur_pkt. */
+	for(;;) {
+		struct fcb_pkt *np
+		int r = clean_pkt(p, &np);
+
+		if (r < 0)
+			return r;
+		if (r == 1) {
+			/* no more data to process */
+			break;
+		}
+
+		list_add(ic->pkts, np->list);
+	}
+
+	return 0;
 }
 
 /*
@@ -129,21 +200,31 @@ static int out_update(fcb_ctx *ctx)
 		}
 	} else if (ret < 0) {
 		/* TODO: some type of error, handle. */
+		return -1;
 	}
 
 	return 0;
 }
 
+static int fcb_advance(struct fcb_ctx *ctx)
+{
+	return fcb_advance_wait(ctx, 0);
+}
+
 /*
- * fcb_advance - determines (via poll) whether any data can be writen to or
- *               read from the file descriptor, and then sends and recives the
- *               maximum amount of data (without blocking on IO).
+ * fcb_advance_wait - determines (via poll) whether any data can be writen to
+ *                    or read from the file descriptor, and then sends and
+ *                    recives the maximum amount of data. Only blocking is done
+ *                    up to timeout amount.
  *
- * @ctx - the fcb_ctx to operate upon.
+ * @ctx:     the fcb_ctx to operate upon.
+ * @timeout: amound to time to wait for poll to complete. If <1, this indicates
+ *           an infinite wait. Infinite waits are assumed to mean the caller is
+ *           waiting for all output packets to be processed.
  *
  * return - on error, < 1. On success 0.
  */
-static int fcb_advance(fcb_ctx *ctx)
+static int fcb_advance_wait(struct fcb_ctx *ctx, int timeout )
 {
 	struct pollfd pfd = { ctx.fd, POLLOUT | POLLIN, 0 };
 	for (;;) {
@@ -166,7 +247,15 @@ static int fcb_advance(fcb_ctx *ctx)
 				/* do output update */
 				int r = out_update(ctx);
 				if (r == 1) {
-					pfd.events &= ~POLLOUT;
+					if (timeout < 0) {
+						/* infinite timeout
+						 * indicates we are waiting
+						 * for the output to empty.
+						 */
+						return 0;
+					} else {
+						pfd.events &= ~POLLOUT;
+					}
 				} else if (r) {
 					return r;
 				}
@@ -180,7 +269,6 @@ static int fcb_advance(fcb_ctx *ctx)
 					return r;
 				}
 			}
-
 		} else if (r < 0) {
 			/* error */
 			return r;
@@ -190,25 +278,6 @@ static int fcb_advance(fcb_ctx *ctx)
 		}
 	}
 	return 0;
-}
-
-/*
- * pkt_mk - allocate and intialize a fcb_pkt with data len = init_sz
- *
- * @init_sz - a suggestion for the size of the data[] in fcb_pkt.
- */
-static fcb_pkt *pkt_mk(size_t init_sz)
-{
-	fcb_pkt *p = malloc(sizeof(*p) + init_sz);
-	if (!p)
-		return p;
-
-	p->mem_len = init_sz;
-	p->cur_pos = 0;
-
-	INIT_LIST_HEAD(&p->l);
-
-	return p;
 }
 
 /*
@@ -343,18 +412,16 @@ ssize_t fcb_send(struct fcb_ctx *ctx, void *data, size_t nbytes)
 
 	list_add(&pk->l, ctx->out.pkts);
 
-	return fcb_advance_out(ctx);
+	return fcb_advance(ctx);
 }
 
-/*
- * convert_from_pkt - takes raw bytes which form a packet.
-static ssize_t convert_from_pkt(struct fcb_pkt *in_pkt)
-{
-
-}
 
 /*
- * fcb_recv - get a packet.
+ * fcb_recv - get a packet. when no packet is avaliable, returns 0.
+ *            otherwise, returns the length of the packet.
+ *
+ *            XXX: should this block? If it does, we need to be able to
+ *            determine if a message is waiting for us.
  */
 ssize_t fcb_recv(struct fcb_ctx *ctx, void *data, size_t nbytes)
 {
@@ -365,15 +432,20 @@ ssize_t fcb_recv(struct fcb_ctx *ctx, void *data, size_t nbytes)
 	 */
 	if (!list_empty(&ctx->in.l)) {
 		struct list_head *ipl = ctx->in.l.next;
+
 		list_del(ipl);
+
 		struct fcb_pkt *pl = pkt_from_list(ipl);
+		size_t pllen = pl->len;
 		memcpy(data, pl->data, MIN(pl->len, nbytes));
-		return pl->len;
+
+		free(pl);
+
+		return pllen;
 	}
 
-	/* TODO: 
-
-
+	/* no packet here. try again later. */
+	return 0;
 }
 
 /*
@@ -381,7 +453,7 @@ ssize_t fcb_recv(struct fcb_ctx *ctx, void *data, size_t nbytes)
  */
 int fcb_flush(struct fcb_ctx *ctx)
 {
-	/* TODO: try to complete all outputs */
-	return -EINVAL;
+	/* try to complete all outputs */
+	return fcb_advance(ctx, -1);
 }
 
