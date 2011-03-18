@@ -10,6 +10,7 @@
 
 #include "muc/muc.h"
 #include "muc/adc.h"
+#include "muc/pid.h"
 
 #include "motor_shb.h"
 #include "error_led.h"
@@ -17,11 +18,24 @@
 
 #include "../hj_proto.h"
 
-#define HJ_SEND_ERROR(errnum) do {			\
-	struct hja_pkt_error err_pkt =			\
-		HJA_PKT_ERROR_INITIALIZER(errnum);	\
-	frame_send(&err_pkt, HJA_PL_ERROR);		\
-} while(0)
+
+struct pid mpid[2] = {
+	PID_INITIALIZER(1,0,0,0),
+	PID_INITIALIZER(1,0,0,0)
+};
+
+#define ENC_IN(a, b) { 1 << (a), 1 << (b) }
+struct encoder_con {
+	uint8_t a;
+	uint8_t b;
+	uint32_t ct_p;
+	uint32_t ct_n;
+	int16_t  ct_local;
+} static ec_data [] = {
+	ENC_IN(PC4, PC5), // PCINT12, PCINT13
+	ENC_IN(PC2, PC3)  // PCINT10, PCINT11
+};
+
 
 #define ENC_NAME C
 #define ENC_PORT PORT(ENC_NAME)
@@ -30,17 +44,11 @@
 #define ENC_PCIE PCIE1
 #define ENC_PCMSK PCMSK1
 
-#define ENC_IN(a, b) { 1 << (a), 1 << (b) }
-struct encoder_con {
-	uint8_t a;
-	uint8_t b;
-	uint32_t ct_p;
-	uint32_t ct_n;
-} static ec_data [] = {
-	ENC_IN(PC4, PC5), // PCINT12, PCINT13
-	ENC_IN(PC2, PC3)  // PCINT10, PCINT11
-};
-
+#define HJ_SEND_ERROR(errnum) do {			\
+	struct hja_pkt_error err_pkt =			\
+		HJA_PKT_ERROR_INITIALIZER(errnum);	\
+	frame_send(&err_pkt, HJA_PL_ERROR);		\
+} while(0)
 
 #define e_pc_init(pin) do {					\
 	/* set pin as input and unmask in pcint register */	\
@@ -99,15 +107,19 @@ static void enc_dec(uint8_t i, struct hj_pktc_enc *e)
 	if (pa & (xport)) {		\
 		if (a != b) {		\
 			(e).ct_p ++;	\
+			(e).ct_local ++;\
 		} else {		\
 			(e).ct_n ++;	\
+			(e).ct_local --;\
 		}			\
 	}				\
 	if (pb & (xport)) {		\
 		if (a == b) {		\
 			(e).ct_p ++;	\
+			(e).ct_local ++;\
 		} else {		\
 			(e).ct_n ++;	\
+			(e).ct_local --;\
 		}			\
 	}				\
 } while(0)
@@ -125,15 +137,58 @@ ISR(ENC_ISR)
 
 static int16_t motor_pwr[2];
 
-static void update_vel(uint8_t idx, struct hjb_pkt_set_speed *pkt)
+/* update_pwr - called when the output pwm signal to a motor changes
+ *
+ * @idx: the index of the motor whose power is changed.
+ * @pwr: the new pwm power level for the motor.
+ */
+static void update_pwr(uint8_t idx, int16_t pwr)
 {
-	motor_pwr[idx] = ntohs(pkt->vel[idx]);
+	motor_pwr[idx] = pwr;
 	mshb_set(idx, motor_pwr[idx]);
 	if (motor_pwr[idx]) {
 		mshb_enable(idx);
 	} else {
 		mshb_disable(idx);
 	}
+}
+
+#define PID_TIMSK TIMSK2
+#define PID_TIMSK_MSK (1 << OCIE2A)
+static inline void pid_tmr_off(void)
+{
+	PID_TIMSK &= ~(PID_TIMSK_MSK);
+	barrier();
+}
+
+static inline void pid_tmr_on(void)
+{
+	PID_TIMSK |= PID_TIMSK_MSK;
+	barrier();
+}
+
+static void pid_tmr_init(void)
+{
+	TIMER2_INIT_CTC(TIMER2_PSC_64, 0xff);
+}
+
+#define pid_step(m_idx) do {							\
+	update_pwr(m_idx, pid_update(&mpid[m_idx], ec_data[m_idx].ct_local));	\
+	ec_data[m_idx].ct_local = 0;						\
+} while(0)
+
+ISR(TIMER2_COMPA_vect)
+{
+	pid_step(0);
+	pid_step(1);
+}
+
+static void update_vel(struct hjb_pkt_set_speed *pkt)
+{
+	pid_tmr_off();
+	pid_set_goal(mpid[0], ntohs(pkt->vel[0]));
+	pid_set_goal(mpid[1], ntohs(pkt->vel[1]));
+	pid_tmr_on();
 }
 
 static void motor_info_get(struct hj_pktc_motor_info *m, uint16_t current,
@@ -143,7 +198,6 @@ static void motor_info_get(struct hj_pktc_motor_info *m, uint16_t current,
 	m->pwr = htons(motor_pwr[i]);
 	enc_get(&m->e, i);
 }
-
 
 /* return true = failure */
 static bool hj_parse(uint8_t *buf, uint8_t len)
@@ -164,9 +218,7 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 
 		struct hjb_pkt_set_speed *pkt = (typeof(pkt)) buf;
 
-		update_vel(HJ_MOTOR_R, pkt);
-		update_vel(HJ_MOTOR_L, pkt);
-
+		update_vel(pkt);
 		break;
 	}
 	case HJB_PT_REQ_INFO: {
@@ -242,6 +294,7 @@ ISR(WDT_vect)
 	wd_timeout = true;
 }
 
+
 __attribute__((noreturn))
 void main(void)
 {
@@ -253,6 +306,7 @@ void main(void)
 	led_init();
 	mshb_init();
 	enc_init();
+	pid_tmr_init();
 	sei();
 
 	HJ_SEND_ERROR(10);
