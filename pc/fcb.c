@@ -94,6 +94,49 @@ int fcb_open(struct fcb_ctx *ctx, int fd)
  */
 static int clean_pkt(struct fcb_pkt *in_pkt, struct fcb_pkt **out_pkt)
 {
+	uint8_t buf[in_pkt->cur_len];
+	uint16_t crc = FRAME_CRC_INIT;
+	size_t i;
+	size_t j = 0;
+	bool esc = false;
+
+	/* find the first start byte */
+	for (i = 0; ; i++) {
+		if (i >= in_pkt->cur_len)
+			goto done;
+		if (in_pkt->buf[i] == FRAME_START)
+			break;
+	}
+
+	for (;; i++) {
+		uint8_t b = in_pkt->buf[i];
+
+		switch(b) {
+		case FRAME_START:
+			/* TODO: packet done */
+			esc = false;
+			break;
+		case FRAME_ESC:
+			esc = true;
+			break;
+		case FRAME_CANCEL:
+			/* TODO: packet discard */
+			esc = false;
+			break;
+		default:
+			crc = crc_ccitt_update(crc, b);
+			if (esc) {
+				buf[j] = FRAME_ESC_MASK ^ b;
+			} else {
+				buf[j] = b;
+			}
+			esc = false;
+			j++;
+			break;
+		}
+	}
+
+	/* TODO: */
 	return -EINVAL;
 }
 
@@ -199,7 +242,7 @@ static int out_update(fcb_ctx *ctx)
 			 * deallocate */
 		}
 	} else if (ret < 0) {
-		/* TODO: some type of error, handle. */
+		/* FIXME: some type of error, handle. */
 		return -1;
 	}
 
