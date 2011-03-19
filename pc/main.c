@@ -42,7 +42,7 @@ struct bytebuf *bytebuf_append(struct bytebuf *s, char c) {
 
 void send_req_info(FILE *out)
 {
-	struct hjb_pkt_req_info ri = HJB_PKT_REQ_INFO_INITIALIZER;
+	struct hj_pkt_header ri = HJB_PKT_REQ_INFO_INITIALIZER;
 	frame_send(out, &ri, HJB_PL_REQ_INFO);
 }
 
@@ -87,7 +87,7 @@ int main(int argc, char **argv)
 	char buf[1024];
 	for(;;) {
 		ssize_t len = frame_recv(sf, buf, sizeof(buf));
-		struct hj_pktc_header *h = (typeof(h)) buf;
+		struct hj_pkt_header *h = (typeof(h)) buf;
 
 		if (len < 0) {
 			fprintf(stderr, "frame_recv => %zd\n", len);

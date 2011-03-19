@@ -89,16 +89,6 @@ static void enc_get(struct hj_pktc_enc *e, uint8_t i)
 	enc_isr_on();
 }
 
-static void enc_dec(uint8_t i, struct hj_pktc_enc *e)
-{
-	uint32_t p = ntohl(e->p);
-	uint32_t n = ntohl(e->n);
-	enc_isr_off();
-	ec_data[i].ct_p -= p;
-	ec_data[i].ct_n -= n;
-	enc_isr_on();
-}
-
 #define enc_update(e, port, xport) do { \
 	uint8_t pa = (e).a;		\
 	uint8_t pb = (e).b;		\
@@ -191,6 +181,8 @@ static void update_vel(struct hjb_pkt_set_speed *pkt)
 	pid_tmr_on();
 }
 
+
+
 static void motor_info_get(struct hj_pktc_motor_info *m, uint16_t current,
 		uint8_t i)
 {
@@ -198,6 +190,13 @@ static void motor_info_get(struct hj_pktc_motor_info *m, uint16_t current,
 	m->pwr = htons(motor_pwr[i]);
 	enc_get(&m->e, i);
 }
+
+#define HJ_CASE(to_from, pkt_name)				\
+	case HJ##to_from##_PT_##pkt_name:			\
+		if (len != HJ##to_from##_PL_##pkt_name) {	\
+			HJ_SEND_ERROR(1);			\
+			return true;				\
+		}
 
 /* return true = failure */
 static bool hj_parse(uint8_t *buf, uint8_t len)
@@ -207,7 +206,7 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 		return true;
 	}
 
-	struct hj_pktc_header *head = (typeof(head)) buf;
+	struct hj_pkt_header *head = (typeof(head)) buf;
 
 	switch(head->type) {
 	case HJB_PT_SET_SPEED: {
@@ -239,19 +238,7 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 		frame_send(&info, HJA_PL_INFO);
 		break;
 	}
-	case HJB_PT_ENC_DEC: {
-		struct hjb_pkt_enc_dec *ed;
-		if (len != sizeof(ed)) {
-			HJ_SEND_ERROR(1);
-			return true;
-		}
-
-		ed = (typeof(ed)) buf;
-		enc_dec(0, &ed->e[0]);
-		enc_dec(1, &ed->e[1]);
-		break;
-	}
-
+	
 	default:
 		HJ_SEND_ERROR(head->type);
 		return true;
@@ -260,8 +247,32 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 }
 
 
+/* watchdog uses a independent 128kHz oscillator. */
 
+/* Table 10-2.
+ * Watchdog Timer Prescale Select
+ * WDP[3:0] Number of WDT Oscillator Cycles	Typical Time-out at VCC = 5.0V
+ * 0 0 0 0  2K   (2048)				16 ms
+ * 0 0 0 1  4K   (4096) cycles			32 ms
+ * 0 0 1 0  8K   (8192) cycles			64 ms
+ * 0 0 1 1  16K  (16384) cycles			0.125 s
+ * 0 1 0 0  32K  (32768) cycles			0.25 s
+ * 0 1 0 1  64K  (65536) cycles			0.5 s
+ * 0 1 1 0  128K (131072) cycles		1.0 s
+ */
+
+/* prescale = 64K cycles ~= 0.5seconds. */
 #define WDT_PRESCALE ((0 << WDP3) | (1 << WDP2) | (0 << WDP1) | (1 << WDP0))
+
+/* Table 10-1.
+ * Watchdog Timer Configuration
+ * WDTON WDE WDIE Action on Time-out
+ * 1     0   0    None (stopped)
+ * 1     0   1    Interrupt
+ * 1     1   0    Reset
+ * 1     1   1    Interrupt, then go to System Reset Mode (110 or 0xx)
+ * 0     x   x    Reset
+ */
 #define WDT_CSRVAL ((1 << WDE) | (1 << WDIE) | WDT_PRESCALE)
 
 static void wdt_setup(void)
@@ -318,11 +329,12 @@ void main(void)
 			frame_recv_next();
 
 		if (len && !hj_parse(buf, len)) {
+			/* we have recived a valid frame, keep ourselves alive */
 			wdt_progress();
 		}
 
 		if (wd_timeout) {
-			struct hja_pkt_timeout tout
+			struct hj_pkt_header tout
 				= HJA_PKT_TIMEOUT_INITIALIZER;
 			frame_send(&tout, HJA_PL_TIMEOUT);
 			wd_timeout = false;
