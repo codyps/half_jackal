@@ -35,6 +35,7 @@ struct hj_pktc_pid_k {
 	int32_t p;
 	int32_t i;
 	int32_t d;
+	int16_t i_max;
 } __packed;
 
 /** packets dispatched both ways **/
@@ -77,8 +78,10 @@ union hj_pkt_union {
 enum hj_pkt_len {
 	HJ_PL_HEADER = sizeof(struct hj_pkt_header),
 
-	HJA_PL_TIMEOUT = HJ_PL_HEADER,
+	HJA_PL_TIMEOUT  = HJ_PL_HEADER,
 	HJB_PL_REQ_INFO = HJ_PL_HEADER,
+	HJB_PL_PID_REQ  = HJ_PL_HEADER,
+	HJB_PL_PID_SAVE = HJ_PL_HEADER,
 
 	HJA_PL_INFO = sizeof(struct hja_pkt_info),
 	HJA_PL_ERROR = sizeof(struct hja_pkt_error),
@@ -95,14 +98,18 @@ enum hj_pkt_type {
 	HJA_PT_ERROR,
 	HJB_PT_SET_SPEED,
 	HJB_PT_REQ_INFO,
-	HJ_PT_PID_K,
-	HJ_PT_PID_SAVE
+	HJB_PT_PID_SAVE,
+	HJB_PT_PID_REQ,
+
+	HJ_PT_PID_K
 };
 
 #define HJB_PKT_REQ_INFO_INITIALIZER { .type = HJB_PT_REQ_INFO }
 #define HJA_PKT_TIMEOUT_INITIALIZER  { .type = HJA_PT_TIMEOUT  }
 
+#define HJ_PKT_PID_K_INITIALIZER { .head = { .type = HJ_PT_PID_K } }
 #define HJA_PKT_INFO_INITIALIZER { .head = { .type = HJA_PT_INFO } }
+
 #define HJA_PKT_ERROR_INITIALIZER(err) { .head = { .type = HJA_PT_ERROR }, \
 	.line = htons(__LINE__), .file = __FILE__, .errnum = htons(err) }
 #define HJB_PKT_SET_SPEED_INITIALIZER(a,b)		\

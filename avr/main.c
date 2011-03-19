@@ -198,6 +198,20 @@ static void motor_info_get(struct hj_pktc_motor_info *m, uint16_t current,
 			return true;				\
 		}
 
+#define pid_k_pack(pkt, m) do {				\
+	pkt.k[m].p = htonl(mpid[m].kp);		\
+	pkt.k[m].i = htonl(mpid[m].ki);		\
+	pkt.k[m].d = htonl(mpid[m].kd);		\
+	pkt.k[m].i_max = htons(mpid[m].integral_max);	\
+} while(0)
+
+#define pid_k_unpack(pkt, m) do {			\
+	mpid[m].kp = ntohl(pkt->k[m].p);		\
+	mpid[m].ki = ntohl(pkt->k[m].i);		\
+	mpid[m].kd = ntohl(pkt->k[m].d);		\
+	mpid[m].integral_max = ntohs(pkt->k[m].i_max);	\
+} while(0)
+
 /* return true = failure */
 static bool hj_parse(uint8_t *buf, uint8_t len)
 {
@@ -209,23 +223,13 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 	struct hj_pkt_header *head = (typeof(head)) buf;
 
 	switch(head->type) {
-	case HJB_PT_SET_SPEED: {
-		if (len != HJB_PL_SET_SPEED) {
-			HJ_SEND_ERROR(1);
-			return true;
-		}
-
+	HJ_CASE(B, SET_SPEED) {
 		struct hjb_pkt_set_speed *pkt = (typeof(pkt)) buf;
-
 		update_vel(pkt);
 		break;
 	}
-	case HJB_PT_REQ_INFO: {
-		if (len != HJB_PL_REQ_INFO) {
-			HJ_SEND_ERROR(1);
-			return true;
-		}
 
+	HJ_CASE(B, REQ_INFO) {
 		uint16_t vals[ADC_CHANNEL_CT];
 		adc_val_cpy(vals);
 
@@ -238,7 +242,31 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 		frame_send(&info, HJA_PL_INFO);
 		break;
 	}
-	
+
+	HJ_CASE( , PID_K) {
+		struct hj_pkt_pid_k *k = (typeof(k)) buf;
+
+		pid_tmr_off();
+		pid_k_unpack(k, 0);
+		pid_k_unpack(k, 1);
+		pid_tmr_on();
+		break;
+	}
+
+	HJ_CASE(B, PID_SAVE) {
+
+		break;
+	}
+
+	HJ_CASE(B, PID_REQ) {
+		struct hj_pkt_pid_k k = HJ_PKT_PID_K_INITIALIZER;
+		pid_k_pack(k, 0);
+		pid_k_pack(k, 1);
+
+		frame_send(&k, HJ_PL_PID_K);
+		break;
+	}
+
 	default:
 		HJ_SEND_ERROR(head->type);
 		return true;
