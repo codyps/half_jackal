@@ -1,10 +1,8 @@
 #ifndef _LINUX_LIST_H
 #define _LINUX_LIST_H
 
-#include <linux/types.h>
-#include <linux/stddef.h>
-#include <linux/poison.h>
-#include <linux/prefetch.h>
+#include <penny/poison.h>
+#include <penny/prefetch.h>
 
 /*
  * Simple doubly linked list implementation.
