@@ -175,10 +175,15 @@ ISR(TIMER2_COMPA_vect)
 
 static void update_vel(struct hjb_pkt_set_speed *pkt)
 {
+#if 0
 	pid_tmr_off();
 	pid_set_goal(mpid[0], ntohs(pkt->vel[0]));
 	pid_set_goal(mpid[1], ntohs(pkt->vel[1]));
 	pid_tmr_on();
+#else
+	update_pwr(0, ntohs(pkt->vel[0]));
+	update_pwr(1, ntohs(pkt->vel[1]));
+#endif
 }
 
 
