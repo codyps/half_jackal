@@ -142,8 +142,8 @@ int main(int argc, char **argv)
 			file[sizeof(e->file)] = 0;
 
 			fprintf(stderr, "file: %s, line: %"
-					PRIu16", errnum: %"PRIu8"\n",
-				file, ntohs(e->line), ntohs(e->errnum));
+					PRIu16", errnum: %"PRIx8"\n",
+				file, ntohs(e->line), ntohl(e->errnum));
 			break;
 		}
 

@@ -61,7 +61,7 @@ struct hja_pkt_info {
 
 struct hja_pkt_error {
 	struct hj_pkt_header head;
-	uint8_t errnum;
+	int32_t errnum;
 	uint16_t line;
 	char file[6];
 } __packed;

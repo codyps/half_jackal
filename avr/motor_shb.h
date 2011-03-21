@@ -5,6 +5,8 @@
 #include "muc/muc.h"
 #include "muc/timer.h"
 
+#include "error_frame.h"
+
 struct pin {
 	uint8_t volatile *port;
 	uint8_t mask;
@@ -75,7 +77,7 @@ static struct mshb mshb_d [] = {
 static inline
 void pwm16_set(struct pwm16_out pwm, uint16_t val15)
 {
-	*(pwm.mreg) = (uint16_t)val15;
+	*(pwm.mreg) = val15;
 }
 
 static inline
@@ -115,6 +117,7 @@ void mshb_set(uint8_t i, int16_t speed)
 		uint16_t m = INT16_MAX + speed;
 		pwm16_set(mshb_d[i].pwma, m);
 		PIN_SET_HIGH(mshb_d[i].b);
+		hj_send_error(m);
 	}
 }
 

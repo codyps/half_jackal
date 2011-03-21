@@ -7,11 +7,12 @@
 
 #include "error_frame.h"
 
-void __hj_send_error(uint16_t line, char *file, size_t flen, uint8_t errnum)
+void __hj_send_error(uint16_t line, char *file, size_t flen,
+		int32_t errnum)
 {
 	struct hja_pkt_error err_pkt = {
 		.head = { .type = HJA_PT_ERROR },
-		.errnum = errnum,
+		.errnum = htonl(errnum),
 		.line = line
 	};
 
