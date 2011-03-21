@@ -15,13 +15,14 @@
 #include "motor_shb.h"
 #include "error_led.h"
 #include "frame_async.h"
+#include "error_frame.h"
 
 #include "../hj_proto.h"
 
 
 struct pid mpid[2] = {
-	PID_INITIALIZER(1,0,0,0),
-	PID_INITIALIZER(1,0,0,0)
+	PID_INITIALIZER(0xfflu*1024,0,0,0),
+	PID_INITIALIZER(0xfflu*1024,0,0,0)
 };
 
 #define ENC_IN(a, b) { 1 << (a), 1 << (b) }
@@ -43,12 +44,6 @@ struct encoder_con {
 #define ENC_ISR PCINT1_vect
 #define ENC_PCIE PCIE1
 #define ENC_PCMSK PCMSK1
-
-#define HJ_SEND_ERROR(errnum) do {			\
-	struct hja_pkt_error err_pkt =			\
-		HJA_PKT_ERROR_INITIALIZER(errnum);	\
-	frame_send(&err_pkt, HJA_PL_ERROR);		\
-} while(0)
 
 #define e_pc_init(pin) do {					\
 	/* set pin as input and unmask in pcint register */	\
@@ -135,12 +130,12 @@ static int16_t motor_pwr[2];
 static void update_pwr(uint8_t idx, int16_t pwr)
 {
 	motor_pwr[idx] = pwr;
-	mshb_set(idx, motor_pwr[idx]);
-	if (motor_pwr[idx]) {
+	mshb_set(idx, pwr);
+//	if (pwr) {
 		mshb_enable(idx);
-	} else {
-		mshb_disable(idx);
-	}
+//	} else {
+//		mshb_disable(idx);
+//	}
 }
 
 #define PID_TIMSK TIMSK2
@@ -159,7 +154,7 @@ static inline void pid_tmr_on(void)
 
 static void pid_tmr_init(void)
 {
-	TIMER2_INIT_CTC(TIMER2_PSC_64, 0xff);
+	TIMER2_INIT_CTC(TIMER2_PSC_1024, 0xff);
 }
 
 #define pid_step(m_idx) do {							\
@@ -175,7 +170,7 @@ ISR(TIMER2_COMPA_vect)
 
 static void update_vel(struct hjb_pkt_set_speed *pkt)
 {
-#if 0
+#if 1
 	pid_tmr_off();
 	pid_set_goal(mpid[0], ntohs(pkt->vel[0]));
 	pid_set_goal(mpid[1], ntohs(pkt->vel[1]));
@@ -185,8 +180,6 @@ static void update_vel(struct hjb_pkt_set_speed *pkt)
 	update_pwr(1, ntohs(pkt->vel[1]));
 #endif
 }
-
-
 
 static void motor_info_get(struct hj_pktc_motor_info *m, uint16_t current,
 		uint8_t i)
@@ -199,7 +192,7 @@ static void motor_info_get(struct hj_pktc_motor_info *m, uint16_t current,
 #define HJ_CASE(to_from, pkt_name)				\
 	case HJ##to_from##_PT_##pkt_name:			\
 		if (len != HJ##to_from##_PL_##pkt_name) {	\
-			HJ_SEND_ERROR(1);			\
+			hj_send_error(1);			\
 			return true;				\
 		}
 
@@ -221,7 +214,7 @@ static void motor_info_get(struct hj_pktc_motor_info *m, uint16_t current,
 static bool hj_parse(uint8_t *buf, uint8_t len)
 {
 	if (len < HJ_PL_MIN) {
-		HJ_SEND_ERROR(1);
+		hj_send_error(1);
 		return true;
 	}
 
@@ -273,7 +266,7 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 	}
 
 	default:
-		HJ_SEND_ERROR(head->type);
+		hj_send_error(head->type);
 		return true;
 	}
 	return false;
@@ -305,13 +298,16 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
  * 1     1   0    Reset
  * 1     1   1    Interrupt, then go to System Reset Mode (110 or 0xx)
  * 0     x   x    Reset
+ *
+ * (1) WDTON is a fuse.
  */
-#define WDT_CSRVAL ((1 << WDE) | (1 << WDIE) | WDT_PRESCALE)
+#define WDT_CSRVAL ((0 << WDE) | (1 << WDIE) | WDT_PRESCALE)
 
 static void wdt_setup(void)
 {
 	wdt_reset();
 	MCUSR &= ~(1<<WDRF);
+	wdt_reset();
 
 	/* timed sequence: */
 	WDTCSR |= (1 << WDCE) | (1 << WDE);
@@ -353,7 +349,7 @@ void main(void)
 	pid_tmr_init();
 	sei();
 
-	HJ_SEND_ERROR(10);
+	hj_send_error(10);
 
 	for(;;) {
 		uint8_t buf[HJ_PL_MAX];
