@@ -13,10 +13,11 @@ void __hj_send_error(uint16_t line, char *file, size_t flen,
 	struct hja_pkt_error err_pkt = {
 		.head = { .type = HJA_PT_ERROR },
 		.errnum = htonl(errnum),
-		.line = line
+		.line = line,
+		.ver = VERSION
 	};
 
-	memcpy(err_pkt.file, file, MIN(flen, sizeof(err_pkt.file)));
+	memcpy(err_pkt.file, file, MIN(flen + 1, sizeof(err_pkt.file)));
 
 	frame_send(&err_pkt, HJA_PL_ERROR);
 }

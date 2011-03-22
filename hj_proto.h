@@ -64,6 +64,7 @@ struct hja_pkt_error {
 	int32_t errnum;
 	uint16_t line;
 	char file[6];
+	char ver[8];
 } __packed;
 
 /** **/
@@ -86,6 +87,7 @@ enum hj_pkt_len {
 	HJA_PL_INFO = sizeof(struct hja_pkt_info),
 	HJA_PL_ERROR = sizeof(struct hja_pkt_error),
 	HJB_PL_SET_SPEED = sizeof(struct hjb_pkt_set_speed),
+
 	HJ_PL_PID_K = sizeof(struct hj_pkt_pid_k),
 
 	HJ_PL_MIN = sizeof(struct hj_pkt_header),

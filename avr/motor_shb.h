@@ -117,7 +117,6 @@ void mshb_set(uint8_t i, int16_t speed)
 		uint16_t m = INT16_MAX + speed;
 		pwm16_set(mshb_d[i].pwma, m);
 		PIN_SET_HIGH(mshb_d[i].b);
-		hj_send_error(m);
 	}
 }
 

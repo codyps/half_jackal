@@ -1,0 +1,22 @@
+#! /bin/sh
+
+usage() {
+	echo "usage: $0 [srctree]" >&2
+	exit 1
+}
+
+cd "${1:-.}" || usage
+
+if head=`git rev-parse --verify --short HEAD 2>/dev/null`; then
+	printf '%s' $head
+
+	[ -w . ] && git update-index --refresh --unmerged > /dev/null
+
+	if git diff-index --name-only HEAD | read dummy; then
+		printf '%s' '*'
+	fi
+
+	exit
+fi
+
+printf 'unk'

@@ -14,6 +14,15 @@
 #include "term_open.h"
 #include "error_m.h"
 
+#define HJ_CASE(from_to, pkt_type)					\
+	case HJ##from_to##_PT_##pkt_type:				\
+		fputs("HJ" #from_to "_PT_" #pkt_type ":", stderr);	\
+		if (len != HJ##from_to##_PL_##pkt_type) {		\
+			fprintf(stderr, "len = %zu, expected %d\n",	\
+				len, HJ##from_to##_PL_##pkt_type);	\
+			continue;					\
+		}
+
 struct bytebuf {
 	char *buf;
 	size_t data_len;
@@ -84,6 +93,7 @@ int main(int argc, char **argv)
 		return -2;
 	}
 
+
 	char buf[1024];
 	for(;;) {
 		ssize_t len = frame_recv(sf, buf, sizeof(buf));
@@ -95,24 +105,13 @@ int main(int argc, char **argv)
 		}
 
 		switch(h->type) {
-		case HJA_PT_TIMEOUT: {
-			fprintf(stderr, "HJ_PT_TIMEOUT:");
-			if (len != HJA_PL_TIMEOUT) {
-				fprintf(stderr, "len = %zu, expected %d\n",
-						len, HJA_PL_TIMEOUT);
-				continue;
-			}
+		HJ_CASE(A, TIMEOUT) {
 			fputc('\n', stderr);
 			send_req_info(sf);
 			break;
 		}
-		case HJA_PT_INFO: {
-			fprintf(stderr, "HJ_PT_INFO:");
-			if (len != HJA_PL_INFO) {
-				fprintf(stderr,	" len = %zu, expected %d\n",
-						len, HJA_PL_INFO);
-				continue;
-			}
+
+		HJ_CASE(A, INFO) {
 			struct hja_pkt_info *inf = (typeof(inf)) buf;
 			fprintf(stderr, "\n\ta: ");
 			print_hj_motor_info(&inf->m[0], stderr);
@@ -128,22 +127,24 @@ int main(int argc, char **argv)
 
 			break;
 		}
-		case HJA_PT_ERROR: {
-			fprintf(stderr, "HJ_PT_ERROR:");
-			if (len != HJA_PL_ERROR) {
-				fprintf(stderr, "len = %zu, expected %d\n",
-						len, HJA_PL_ERROR);
-				continue;
-			}
+
+		HJ_CASE(A, ERROR) {
 			struct hja_pkt_error *e = (typeof(e)) buf;
 
+			char ver[sizeof(e->ver) + 1];
 			char file[sizeof(e->file) + 1];
+
+			strncpy(ver,  e->ver,  sizeof(e->ver));
 			strncpy(file, e->file, sizeof(e->file));
+
+			ver[sizeof(e->ver)] = 0;
 			file[sizeof(e->file)] = 0;
 
-			fprintf(stderr, "file: %s, line: %"
-					PRIu16", errnum: %"PRIx8"\n",
-				file, ntohs(e->line), ntohl(e->errnum));
+			fprintf(stderr, "%s:%s:%"PRIu16" - %"PRIx8"\n",
+					ver,
+					file,
+					ntohs(e->line),
+					ntohl(e->errnum));
 			break;
 		}
 

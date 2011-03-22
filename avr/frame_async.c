@@ -77,7 +77,7 @@
 	sizeof(((type *)0)->member)
 
 struct packet_buf {
-	uint8_t buf[32]; /* bytes */
+	uint8_t buf[64]; /* bytes */
 
 	/* array of packet starts in bytes (byte heads and tails,
 	 * depending on index */

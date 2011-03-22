@@ -39,8 +39,8 @@ DEBUG = stabs
 # gnu99 - c99 plus GCC extensions
 CSTANDARD = -std=gnu99
 
-VERSION := $(shell $(srcdir)/muc/setlocalversion)
-CDEFS = -DVERSION="\"$(TARGET)$(VERSION)\""
+VERSION := $(shell $(srcdir)/shortversion)
+CDEFS = -DVERSION="\"$(VERSION)\""
 
 # Place -I options here
 CINCS = -I./muc
