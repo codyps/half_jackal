@@ -140,7 +140,7 @@ int main(int argc, char **argv)
 			ver[sizeof(e->ver)] = 0;
 			file[sizeof(e->file)] = 0;
 
-			fprintf(stderr, "%s:%s:%"PRIu16" - %"PRIx8"\n",
+			fprintf(stderr, "%s:%s:%"PRIu16" - %04"PRIx32"\n",
 					ver,
 					file,
 					ntohs(e->line),

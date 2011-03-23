@@ -334,7 +334,6 @@ ISR(WDT_vect)
 	wd_timeout = true;
 }
 
-
 __attribute__((noreturn))
 void main(void)
 {

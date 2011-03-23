@@ -47,8 +47,8 @@ struct mshb {
 #define TMR1_PWMB PWM_INITIALIZER(OCR1B, PB_2)
 
 static struct mshb mshb_d [] = {
-	MSHB_INITIALIZER(TMR1_PWMA, PD_6, PD_4), // A= 9, B=6, INH=4
-	MSHB_INITIALIZER(TMR1_PWMB, PD_5, PD_7)  // A=10, B=5, INH=7
+	MSHB_INITIALIZER(TMR1_PWMA, PD_6, PD_4), // A= 9, B=6, INH=4 :: left
+	MSHB_INITIALIZER(TMR1_PWMB, PD_5, PD_7)  // A=10, B=5, INH=7 :: right
 };
 
 #define PIN_INIT_OUT(pin) do {					\
@@ -114,8 +114,7 @@ void mshb_set(uint8_t i, int16_t speed)
 		pwm16_set(mshb_d[i].pwma, speed);
 		PIN_SET_LOW(mshb_d[i].b);
 	} else {
-		uint16_t m = INT16_MAX + speed;
-		pwm16_set(mshb_d[i].pwma, m);
+		pwm16_set(mshb_d[i].pwma, INT16_MAX + speed);
 		PIN_SET_HIGH(mshb_d[i].b);
 	}
 }
