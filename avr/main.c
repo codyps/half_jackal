@@ -19,11 +19,11 @@
 
 #include "../hj_proto.h"
 
-
 struct pid mpid[2] = {
 	PID_INITIALIZER(0xfflu*1024,0,0,0),
 	PID_INITIALIZER(0xfflu*1024,0,0,0)
 };
+
 
 #define ENC_IN(a, b) { 1 << (a), 1 << (b) }
 struct encoder_con {
@@ -36,7 +36,6 @@ struct encoder_con {
 	ENC_IN(PC4, PC5), // PCINT12, PCINT13
 	ENC_IN(PC2, PC3)  // PCINT10, PCINT11
 };
-
 
 #define ENC_NAME C
 #define ENC_PORT PORT(ENC_NAME)
@@ -197,17 +196,17 @@ static void motor_info_get(struct hj_pktc_motor_info *m, uint16_t current,
 		}
 
 #define pid_k_pack(pkt, m) do {				\
-	pkt.k[m].p = htonl(mpid[m].kp);		\
-	pkt.k[m].i = htonl(mpid[m].ki);		\
-	pkt.k[m].d = htonl(mpid[m].kd);		\
-	pkt.k[m].i_max = htons(mpid[m].integral_max);	\
+	pkt.k[m].p = htonl(mpid[m].k.p);		\
+	pkt.k[m].i = htonl(mpid[m].k.i);		\
+	pkt.k[m].d = htonl(mpid[m].k.d);		\
+	pkt.k[m].i_max = htons(mpid[m].k.ilimit);	\
 } while(0)
 
 #define pid_k_unpack(pkt, m) do {			\
-	mpid[m].kp = ntohl(pkt->k[m].p);		\
-	mpid[m].ki = ntohl(pkt->k[m].i);		\
-	mpid[m].kd = ntohl(pkt->k[m].d);		\
-	mpid[m].integral_max = ntohs(pkt->k[m].i_max);	\
+	mpid[m].k.p = ntohl(pkt->k[m].p);		\
+	mpid[m].k.i = ntohl(pkt->k[m].i);		\
+	mpid[m].k.d = ntohl(pkt->k[m].d);		\
+	mpid[m].k.ilimit = ntohs(pkt->k[m].i_max);	\
 } while(0)
 
 /* return true = failure */

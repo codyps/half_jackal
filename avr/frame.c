@@ -9,13 +9,7 @@ void frame_send_start(frame_send_ctx *fc)
 	fc->crc = FRAME_CRC_INIT;
 }
 
-void frame_send_byte(frame_send_ctx *fc, uint8_t c)
-{
-	fc->crc = _crc_ccitt_update(fc->crc, c);
-	_frame_send_byte(fc, c);
-}
-
-void _frame_send_byte(frame_send_ctx *fc, uint8_t c)
+static void _frame_send_byte(frame_send_ctx *fc, uint8_t c)
 {
 	if (FRAME_NEED_ESC(c)) {
 		fc->putchar(FRAME_ESC);
@@ -23,6 +17,12 @@ void _frame_send_byte(frame_send_ctx *fc, uint8_t c)
 	}
 
 	fc->putchar(c);
+}
+
+void frame_send_byte(frame_send_ctx *fc, uint8_t c)
+{
+	fc->crc = _crc_ccitt_update(fc->crc, c);
+	_frame_send_byte(fc, c);
 }
 
 void frame_send_done(frame_send_ctx *fc)
@@ -44,14 +44,14 @@ typedef struct frame_recv_ctx {
 
 	bool started;
 	bool esc;
-	bool x; 
+	bool x;
 } frame_recv_ctx;
 
 void frame_recv_feed(frame_recv_ctx *fc, uint8_t c)
 {
 	uint8_t head = fc->head;
 	uint8_t phead = fc->data[head];
-	
+
 	/* FIXME: is this +1 needed? */
 	uint8_t next_pos = (head + phead + 1) & (sizeof(fc->data) - 1);
 
@@ -74,9 +74,9 @@ void frame_recv_feed(frame_recv_ctx *fc, uint8_t c)
 
 				/* FIXME: should this be next_pos - 1? */
 				fc->head = next_pos;
-				
+
 				/* packet has 0 len initially */
-				fc->data[fc->head] = 0; 
+				fc->data[fc->head] = 0;
 			}
 
 		}
@@ -147,5 +147,5 @@ void frame_recv_done(frame_recv_ctx *fc)
 
 void frame_recv_copy(frame_recv_ctx *fc, uint8_t *dst, uint8_t len)
 {
-	
+
 }
