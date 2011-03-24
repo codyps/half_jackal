@@ -23,32 +23,6 @@
 			continue;					\
 		}
 
-struct bytebuf {
-	char *buf;
-	size_t data_len;
-	size_t mem_len;
-};
-
-struct bytebuf *bytebuf_mk(size_t initial_sz)
-{
-	struct bytebuf *s = malloc(sizeof(*s));
-	if (!s)
-		return NULL;
-
-	s->buf = malloc(initial_sz);
-	if (!s->buf)
-		return NULL;
-
-	s->mem_len = initial_sz;
-	s->data_len = 0;
-	return s;
-}
-
-struct bytebuf *bytebuf_append(struct bytebuf *s, char c) {
-	return 0;
-}
-
-
 void send_req_info(FILE *out)
 {
 	struct hj_pkt_header ri = HJB_PKT_REQ_INFO_INITIALIZER;
