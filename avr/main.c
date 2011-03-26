@@ -202,18 +202,28 @@ ISR(TIMER2_COMPA_vect)
 }
 
 #define pid_k_pack(pkt, m) do {				\
-	pkt.k[m].p = htonl(mpid[m].k.p);		\
-	pkt.k[m].i = htonl(mpid[m].k.i);		\
-	pkt.k[m].d = htonl(mpid[m].k.d);		\
-	pkt.k[m].i_max = htons(mpid[m].k.ilimit);	\
+	(pkt)->k[m].p = htonl(mpid[m].k.p);		\
+	(pkt)->k[m].i = htonl(mpid[m].k.i);		\
+	(pkt)->k[m].d = htonl(mpid[m].k.d);		\
+	(pkt)->k[m].i_max = htons(mpid[m].k.ilimit);	\
 } while(0)
 
 #define pid_k_unpack(pkt, m) do {			\
-	mpid[m].k.p = ntohl(pkt->k[m].p);		\
-	mpid[m].k.i = ntohl(pkt->k[m].i);		\
-	mpid[m].k.d = ntohl(pkt->k[m].d);		\
-	mpid[m].k.ilimit = ntohs(pkt->k[m].i_max);	\
+	mpid[m].k.p = ntohl((pkt)->k[m].p);		\
+	mpid[m].k.i = ntohl((pkt)->k[m].i);		\
+	mpid[m].k.d = ntohl((pkt)->k[m].d);		\
+	mpid[m].k.ilimit = ntohs((pkt)->k[m].i_max);	\
 } while(0)
+
+static void pid_k_update(struct hj_pkt_pid_k *k)
+{
+	pid_tmr_off();
+	pid_k_unpack(k, 0);
+	pid_k_unpack(k, 1);
+	mpid[0].integral = 0;
+	mpid[1].integral = 0;
+	pid_tmr_on();
+}
 
 static void pid_k_store(uint8_t i)
 {
@@ -285,11 +295,7 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 #ifdef MCTRL_PID
 	HJ_CASE( , PID_K) {
 		struct hj_pkt_pid_k *k = (typeof(k)) buf;
-
-		pid_tmr_off();
-		pid_k_unpack(k, 0);
-		pid_k_unpack(k, 1);
-		pid_tmr_on();
+		pid_k_update(k);
 		break;
 	}
 
@@ -300,9 +306,8 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 
 	HJ_CASE(B, PID_REQ) {
 		struct hj_pkt_pid_k k = HJ_PKT_PID_K_INITIALIZER;
-		pid_k_pack(k, 0);
-		pid_k_pack(k, 1);
-
+		pid_k_pack(&k, 0);
+		pid_k_pack(&k, 1);
 		frame_send(&k, HJ_PL_PID_K);
 		break;
 	}
