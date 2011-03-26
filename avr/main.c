@@ -49,6 +49,8 @@ struct encoder_con {
 	/* set pin as input and unmask in pcint register */	\
 	DDR(ENC_NAME) &= ~(pin);				\
 	ENC_PCMSK     |=  (pin);				\
+	/* FIXME: pull ups for testing, shouldn't be needed */	\
+	PORT(ENC_NAME)|=  (pin);				\
 } while(0)
 
 #define enc_init_1(e) do {	\
