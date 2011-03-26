@@ -1,23 +1,33 @@
 CC = gcc
 RM = rm -f
 
-TARGET = hdlc_frame
+TARGETS=ms pidk
 
-SRC = main.c frame_async.c term.c hj_print.c hj_send.c
+.SECONDEXPANSION:
+all_SRC = frame_async.c term.c hj_print.c hj_send.c
+ms_SRC = maintain_speed.c $(all_SRC)
+pidk_SRC = send_pid.c $(all_SRC)
+
+ms:   SRC = $(ms_SRC)
+pidk: SRC = $(pidk_SRC)
 
 CFLAGS = -ggdb
 override CFLAGS += -Wall -pipe
 
-all: build
+.PHONY: all
+all: build ;
 
-rebuild: | clean build
+.PHONY: rebuild
+rebuild: | clean build ;
 
-build: $(TARGET)
+.PHONY: build
+build: $(TARGETS) ;
 
-$(TARGET): $(SRC)
-	$(CC) $(CFLAGS) -MMD -o $(TARGET) $(SRC)
+$(TARGETS): $$($$@_SRC)
+	$(CC) $(CFLAGS) -MMD -o $@ $^
 
+.PHONY: clean
 clean:
-	$(RM) $(TARGET) *.d
+	$(RM) $(TARGETS) *.d
 
 -include $(wildcard *.d)
