@@ -7,6 +7,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/wdt.h>
+#include <avr/eeprom.h>
 
 #include "muc/muc.h"
 #include "muc/adc.h"
@@ -19,11 +20,25 @@
 
 #include "../hj_proto.h"
 
+#define MCTRL_PID
 
-struct pid mpid[2] = {
-	PID_INITIALIZER(0xfflu*1024,0,0,0),
-	PID_INITIALIZER(0xfflu*1024,0,0,0)
+const EEMEM struct pid_const_vals pid_ee[2] = {
+	PID_K(0xff0lu, 0, 0, 0),
+	PID_K(0xff0lu, 0, 0, 0)
 };
+
+#ifdef MCTRL_PID
+static struct pid mpid[2] = {
+	PID_INITIALIZER(0,0,0,0),
+	PID_INITIALIZER(0,0,0,0)
+};
+#endif
+
+/*
+ * motor_pwr - stores the present voltage levels being sent to the motors.
+ *             When PID is running, this is the value outputed by pid_update.
+ */
+static int16_t motor_pwr[2];
 
 #define ENC_IN(a, b) { 1 << (a), 1 << (b) }
 struct encoder_con {
@@ -36,7 +51,6 @@ struct encoder_con {
 	ENC_IN(PC4, PC5), // PCINT12, PCINT13
 	ENC_IN(PC2, PC3)  // PCINT10, PCINT11
 };
-
 
 #define ENC_NAME C
 #define ENC_PORT PORT(ENC_NAME)
@@ -122,7 +136,14 @@ ISR(ENC_ISR)
 	enc_update(ec_data[1], port, xport);
 }
 
-static int16_t motor_pwr[2];
+
+static void motor_info_get(struct hj_pktc_motor_info *m, uint16_t current,
+		uint8_t i)
+{
+	m->current = htons(current);
+	m->pwr = htons(motor_pwr[i]);
+	enc_get(&m->e, i);
+}
 
 /* update_pwr - called when the output pwm signal to a motor changes
  *
@@ -133,12 +154,15 @@ static void update_pwr(uint8_t idx, int16_t pwr)
 {
 	motor_pwr[idx] = pwr;
 	mshb_set(idx, pwr);
+	/* FIXME: temporarily never-disabled for debugging. */
 //	if (pwr) {
 		mshb_enable(idx);
 //	} else {
 //		mshb_disable(idx);
 //	}
 }
+
+#ifdef MCTRL_PID
 
 #define PID_TIMSK TIMSK2
 #define PID_TIMSK_MSK (1 << OCIE2A)
@@ -154,8 +178,21 @@ static inline void pid_tmr_on(void)
 	barrier();
 }
 
+static void pid_k_load(uint8_t i)
+{
+	eeprom_read_block(&mpid[i].k, &pid_ee[i], sizeof(pid_ee[i]));
+}
+
+static void pid_k_load_all(void)
+{
+	/* load our data */
+	pid_k_load(0);
+	pid_k_load(1);
+}
+
 static void pid_tmr_init(void)
 {
+	pid_k_load_all();
 	TIMER2_INIT_CTC(TIMER2_PSC_1024, 0xff);
 }
 
@@ -170,9 +207,38 @@ ISR(TIMER2_COMPA_vect)
 	pid_step(1);
 }
 
+#define pid_k_pack(pkt, m) do {				\
+	pkt.k[m].p = htonl(mpid[m].k.p);		\
+	pkt.k[m].i = htonl(mpid[m].k.i);		\
+	pkt.k[m].d = htonl(mpid[m].k.d);		\
+	pkt.k[m].i_max = htons(mpid[m].k.ilimit);	\
+} while(0)
+
+#define pid_k_unpack(pkt, m) do {			\
+	mpid[m].k.p = ntohl(pkt->k[m].p);		\
+	mpid[m].k.i = ntohl(pkt->k[m].i);		\
+	mpid[m].k.d = ntohl(pkt->k[m].d);		\
+	mpid[m].k.ilimit = ntohs(pkt->k[m].i_max);	\
+} while(0)
+
+static void pid_k_store(uint8_t i)
+{
+	eeprom_update_block(&mpid[i].k, (void *)&pid_ee[i], sizeof(pid_ee[i]));
+}
+
+static void pid_k_store_all(void)
+{
+	pid_k_store(0);
+	pid_k_store(1);
+}
+
+#endif /* MCTRL_PID */
+
+
+
 static void update_vel(struct hjb_pkt_set_speed *pkt)
 {
-#if 1
+#ifdef MCTRL_PID
 	pid_tmr_off();
 	pid_set_goal(mpid[0], ntohs(pkt->vel[0]));
 	pid_set_goal(mpid[1], ntohs(pkt->vel[1]));
@@ -183,13 +249,7 @@ static void update_vel(struct hjb_pkt_set_speed *pkt)
 #endif
 }
 
-static void motor_info_get(struct hj_pktc_motor_info *m, uint16_t current,
-		uint8_t i)
-{
-	m->current = htons(current);
-	m->pwr = htons(motor_pwr[i]);
-	enc_get(&m->e, i);
-}
+/** Packet Parsing. **/
 
 #define HJ_CASE(to_from, pkt_name)				\
 	case HJ##to_from##_PT_##pkt_name:			\
@@ -197,20 +257,6 @@ static void motor_info_get(struct hj_pktc_motor_info *m, uint16_t current,
 			hj_send_error(1);			\
 			return true;				\
 		}
-
-#define pid_k_pack(pkt, m) do {				\
-	pkt.k[m].p = htonl(mpid[m].kp);		\
-	pkt.k[m].i = htonl(mpid[m].ki);		\
-	pkt.k[m].d = htonl(mpid[m].kd);		\
-	pkt.k[m].i_max = htons(mpid[m].integral_max);	\
-} while(0)
-
-#define pid_k_unpack(pkt, m) do {			\
-	mpid[m].kp = ntohl(pkt->k[m].p);		\
-	mpid[m].ki = ntohl(pkt->k[m].i);		\
-	mpid[m].kd = ntohl(pkt->k[m].d);		\
-	mpid[m].integral_max = ntohs(pkt->k[m].i_max);	\
-} while(0)
 
 /* return true = failure */
 static bool hj_parse(uint8_t *buf, uint8_t len)
@@ -242,7 +288,7 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 		frame_send(&info, HJA_PL_INFO);
 		break;
 	}
-
+#ifdef MCTRL_PID
 	HJ_CASE( , PID_K) {
 		struct hj_pkt_pid_k *k = (typeof(k)) buf;
 
@@ -254,7 +300,7 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 	}
 
 	HJ_CASE(B, PID_SAVE) {
-
+		pid_k_store_all();
 		break;
 	}
 
@@ -266,6 +312,7 @@ static bool hj_parse(uint8_t *buf, uint8_t len)
 		frame_send(&k, HJ_PL_PID_K);
 		break;
 	}
+#endif
 
 	default:
 		hj_send_error(head->type);
@@ -347,7 +394,9 @@ void main(void)
 	led_init();
 	mshb_init();
 	enc_init();
+#ifdef MCTRL_PID
 	pid_tmr_init();
+#endif
 	sei();
 
 	hj_send_error(10);

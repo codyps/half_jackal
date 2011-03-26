@@ -23,32 +23,6 @@
 			continue;					\
 		}
 
-struct bytebuf {
-	char *buf;
-	size_t data_len;
-	size_t mem_len;
-};
-
-struct bytebuf *bytebuf_mk(size_t initial_sz)
-{
-	struct bytebuf *s = malloc(sizeof(*s));
-	if (!s)
-		return NULL;
-
-	s->buf = malloc(initial_sz);
-	if (!s->buf)
-		return NULL;
-
-	s->mem_len = initial_sz;
-	s->data_len = 0;
-	return s;
-}
-
-struct bytebuf *bytebuf_append(struct bytebuf *s, char c) {
-	return 0;
-}
-
-
 void send_req_info(FILE *out)
 {
 	struct hj_pkt_header ri = HJB_PKT_REQ_INFO_INITIALIZER;
@@ -66,34 +40,8 @@ void print_hj_motor_info(struct hj_pktc_motor_info *inf, FILE *out)
 			(int16_t)ntohs(inf->vel));
 }
 
-int main(int argc, char **argv)
+void hj_parse(FILE *sf, int16_t motors[2])
 {
-	if (argc < 4) {
-		fprintf(stderr, "usage: %s <file> <motor a> <motor b>\n",
-				argc?argv[0]:"hj");
-		return -1;
-	}
-
-	FILE *sf = term_open(argv[1]);
-	if (!sf) {
-		ERROR("open: %s", strerror(errno));
-		return -1;
-	}
-
-	int motors[2];
-	int ret = sscanf(argv[2], "%x", &motors[0]);
-	if (ret != 1) {
-		ERROR("not a number: \"%s\"", argv[1]);
-		return -2;
-	}
-
-	ret = sscanf(argv[3], "%x", &motors[1]);
-	if (ret != 1) {
-		ERROR("not a number: \"%s\"", argv[2]);
-		return -2;
-	}
-
-
 	char buf[1024];
 	for(;;) {
 		ssize_t len = frame_recv(sf, buf, sizeof(buf));
@@ -155,5 +103,36 @@ int main(int argc, char **argv)
 		}
 		}
 	}
+}
+
+int main(int argc, char **argv)
+{
+	if (argc < 4) {
+		fprintf(stderr, "usage: %s <file> <motor a> <motor b>\n",
+				argc?argv[0]:"hj");
+		return -1;
+	}
+
+	FILE *sf = term_open(argv[1]);
+	if (!sf) {
+		ERROR("open: %s", strerror(errno));
+		return -1;
+	}
+
+	int16_t motors[2];
+	int ret = sscanf(argv[2], "%"SCNx16, &motors[0]);
+	if (ret != 1) {
+		ERROR("not a number: \"%s\"", argv[1]);
+		return -2;
+	}
+
+	ret = sscanf(argv[3], "%"SCNx16, &motors[1]);
+	if (ret != 1) {
+		ERROR("not a number: \"%s\"", argv[2]);
+		return -2;
+	}
+
+	hj_parse(sf, motors);
+
 	return 0;
 }
