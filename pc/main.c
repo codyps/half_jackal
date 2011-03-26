@@ -9,6 +9,10 @@
 #include <arpa/inet.h>
 
 #include "frame_async.h"
+
+#include "hj_send.h"
+#include "hj_print.h"
+
 #include "../hj_proto.h"
 
 #include "term_open.h"
@@ -22,24 +26,6 @@
 				len, HJ##from_to##_PL_##pkt_type);	\
 			continue;					\
 		}
-
-void send_req_info(FILE *out)
-{
-	struct hj_pkt_header ri = HJB_PKT_REQ_INFO_INITIALIZER;
-	frame_send(out, &ri, HJB_PL_REQ_INFO);
-}
-
-void print_hj_motor_info(struct hj_pktc_motor_info *inf, FILE *out)
-{
-	fprintf(out, "current: %"PRIu16" enc_p: %"PRIu32
-			" enc_n: %"PRIu32" enc_l: %"PRIi16" pwr: %"PRIi16" vel: %"PRIi16,
-			ntohs(inf->current),
-			ntohl(inf->e.p),
-			ntohl(inf->e.n),
-			(int16_t)ntohs(inf->e.l),
-			(int16_t)ntohs(inf->pwr),
-			(int16_t)ntohs(inf->vel));
-}
 
 void hj_parse(FILE *sf, int16_t motors[2])
 {
@@ -56,44 +42,21 @@ void hj_parse(FILE *sf, int16_t motors[2])
 		switch(h->type) {
 		HJ_CASE(A, TIMEOUT) {
 			fputc('\n', stderr);
-			send_req_info(sf);
+			hj_send_req_info(sf);
 			break;
 		}
 
 		HJ_CASE(A, INFO) {
 			struct hja_pkt_info *inf = (typeof(inf)) buf;
-			fprintf(stderr, "\n\ta: ");
-			print_hj_motor_info(&inf->m[0], stderr);
-			fprintf(stderr, "\n\tb: ");
-			print_hj_motor_info(&inf->m[1], stderr);
-			fprintf(stderr, "\n");
-
-			struct hjb_pkt_set_speed ss =
-				HJB_PKT_SET_SPEED_INITIALIZER(motors[0],
-						motors[1]);
-
-			frame_send(sf, &ss, HJB_PL_SET_SPEED);
-
+			hj_print_info(inf, stderr);
+			fputc('\n', stderr);
+			hj_send_set_speed(sf, motors[0], motors[1]);
 			break;
 		}
 
 		HJ_CASE(A, ERROR) {
 			struct hja_pkt_error *e = (typeof(e)) buf;
-
-			char ver[sizeof(e->ver) + 1];
-			char file[sizeof(e->file) + 1];
-
-			strncpy(ver,  e->ver,  sizeof(e->ver));
-			strncpy(file, e->file, sizeof(e->file));
-
-			ver[sizeof(e->ver)] = 0;
-			file[sizeof(e->file)] = 0;
-
-			fprintf(stderr, "%s:%s:%"PRIu16" - %04"PRIx32"\n",
-					ver,
-					file,
-					ntohs(e->line),
-					ntohl(e->errnum));
+			hj_print_error(e, stderr);
 			break;
 		}
 
@@ -104,6 +67,17 @@ void hj_parse(FILE *sf, int16_t motors[2])
 		}
 		}
 	}
+}
+
+static int16_t int16_or_die(char *in)
+{
+	int16_t num;
+	int ret = sscanf(in, "%"SCNx16, &num);
+	if (ret != 1) {
+		ERROR("not a number: \"%s\"", in);
+		exit(2);
+	}
+	return num;
 }
 
 int main(int argc, char **argv)
@@ -121,17 +95,8 @@ int main(int argc, char **argv)
 	}
 
 	int16_t motors[2];
-	int ret = sscanf(argv[2], "%"SCNx16, &motors[0]);
-	if (ret != 1) {
-		ERROR("not a number: \"%s\"", argv[1]);
-		return -2;
-	}
-
-	ret = sscanf(argv[3], "%"SCNx16, &motors[1]);
-	if (ret != 1) {
-		ERROR("not a number: \"%s\"", argv[2]);
-		return -2;
-	}
+	motors[0] = int16_or_die(argv[2]);
+	motors[1] = int16_or_die(argv[3]);
 
 	hj_parse(sf, motors);
 
