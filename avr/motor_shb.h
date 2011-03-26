@@ -110,7 +110,7 @@ void mshb_disable(uint8_t i)
 static inline
 void mshb_set(uint8_t i, int16_t speed)
 {
-	if (speed > 0) {
+	if (speed >= 0) {
 		pwm16_set(mshb_d[i].pwma, speed);
 		PIN_SET_LOW(mshb_d[i].b);
 	} else {

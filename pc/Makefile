@@ -1,12 +1,13 @@
 CC = gcc
 RM = rm -f
 
-TARGETS=ms pidk
+TARGETS = ms pidk sizes
 
 .SECONDEXPANSION:
 all_SRC = frame_async.c term.c hj_print.c hj_send.c
 ms_SRC = maintain_speed.c $(all_SRC)
 pidk_SRC = send_pid.c $(all_SRC)
+sizes_SRC = sizes.c $(all_SRC)
 
 ms:   SRC = $(ms_SRC)
 pidk: SRC = $(pidk_SRC)

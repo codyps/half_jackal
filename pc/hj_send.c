@@ -9,6 +9,12 @@
 
 #include "hj_send.h"
 
+int hj_send_pid_req(FILE *out)
+{
+	struct hj_pkt_header pr = HJB_PKT_PID_REQ_INITIALIZER;
+	return frame_send(out, &pr, HJB_PL_PID_REQ);
+}
+
 int hj_send_req_info(FILE *out)
 {
 	struct hj_pkt_header ri = HJB_PKT_REQ_INFO_INITIALIZER;

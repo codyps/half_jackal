@@ -25,18 +25,18 @@ struct hj_pktc_enc {
 	int16_t  l;
 } __packed;
 
-struct hj_pktc_motor_info {
-	uint16_t current;
-	struct hj_pktc_enc e;
-	int16_t pwr;
-	int16_t vel;
-} __packed;
-
 struct hj_pktc_pid_k {
 	int32_t p;
 	int32_t i;
 	int32_t d;
 	int16_t i_max;
+} __packed;
+
+struct hj_pktc_motor_info {
+	uint16_t current;
+	struct hj_pktc_enc e;
+	int16_t pwr;
+	int16_t vel;
 } __packed;
 
 /** packets dispatched both ways **/
@@ -108,6 +108,7 @@ enum hj_pkt_type {
 };
 
 #define HJB_PKT_REQ_INFO_INITIALIZER { .type = HJB_PT_REQ_INFO }
+#define HJB_PKT_PID_REQ_INITIALIZER  { .type = HJB_PT_PID_REQ  }
 #define HJA_PKT_TIMEOUT_INITIALIZER  { .type = HJA_PT_TIMEOUT  }
 
 #define HJ_PKT_PID_K_INITIALIZER { .head = { .type = HJ_PT_PID_K } }

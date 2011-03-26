@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
+int hj_send_pid_req(FILE *out);
 int hj_send_set_speed(FILE *sf, int16_t ml, int16_t mr);
 int hj_send_req_info(FILE *out);
 

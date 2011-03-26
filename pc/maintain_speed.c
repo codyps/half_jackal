@@ -43,6 +43,8 @@ void hj_parse(FILE *sf, int16_t motors[2])
 		HJ_CASE(A, TIMEOUT) {
 			fputc('\n', stderr);
 			hj_send_req_info(sf);
+			hj_send_pid_req(sf);
+			hj_send_set_speed(sf, motors[0], motors[1]);
 			break;
 		}
 
@@ -50,7 +52,6 @@ void hj_parse(FILE *sf, int16_t motors[2])
 			struct hja_pkt_info *inf = (typeof(inf)) buf;
 			hj_print_info(inf, stderr);
 			fputc('\n', stderr);
-			hj_send_set_speed(sf, motors[0], motors[1]);
 			break;
 		}
 
@@ -60,11 +61,18 @@ void hj_parse(FILE *sf, int16_t motors[2])
 			break;
 		}
 
+		HJ_CASE(, PID_K) {
+			struct hj_pkt_pid_k *p = (typeof(p)) buf;
+			hj_print_pid_k(p, stderr);
+			break;
+		}
+
 		default: {
 			fprintf(stderr, "recieved unknown pt %x, len %zu\n",
 					h->type, len );
 			break;
 		}
+
 		}
 	}
 }

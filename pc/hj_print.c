@@ -16,10 +16,25 @@ static void print_pktc_mi(struct hj_pktc_motor_info *inf, FILE *out)
 			(int16_t)ntohs(inf->pwr),
 			(int16_t)ntohs(inf->vel));
 }
+static void print_pktc_pk(struct hj_pktc_pid_k *pk, FILE *out)
+{
+	fprintf(out, "P: %"PRIi32" I: %"PRIi32" D: %"PRIi32" imax: %"PRIi16,
+			(int32_t)ntohl(pk->p),
+			(int32_t)ntohl(pk->i),
+			(int32_t)ntohl(pk->d),
+			(int16_t)ntohs(pk->i_max));
+}
 
+void hj_print_pid_k(struct hj_pkt_pid_k *inf, FILE *out)
+{
+	fputs("a: ", out);
+	print_pktc_pk(&inf->k[0], out);
+	fputs("\tb: ", out);
+	print_pktc_pk(&inf->k[1], out);
+}
 void hj_print_info(struct hja_pkt_info *inf, FILE *out)
 {
-	fputs("\ta: ", out);
+	fputs("a: ", out);
 	print_pktc_mi(&inf->m[0], out);
 	fputs("\tb: ", out);
 	print_pktc_mi(&inf->m[1], out);
