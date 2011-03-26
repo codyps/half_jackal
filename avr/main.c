@@ -119,13 +119,15 @@ static void enc_get(struct hj_pktc_enc *e, uint8_t i)
 
 ISR(ENC_ISR)
 {
-	static uint8_t old_port;
+	static uint8_t old_pin;
 
-	uint8_t port = ENC_PIN;
-	uint8_t xport = port ^ old_port;
+	uint8_t pin = ENC_PIN;
+	uint8_t xpin = pin ^ old_pin;
 
-	enc_update(ec_data[0], port, xport);
-	enc_update(ec_data[1], port, xport);
+	enc_update(ec_data[0], pin, xpin);
+	enc_update(ec_data[1], pin, xpin);
+
+	old_pin = pin;
 }
 
 
