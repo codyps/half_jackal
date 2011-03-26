@@ -18,6 +18,10 @@ static int serial_conf(int fd, speed_t speed)
 	if (ret < 0)
 		return ret;
 
+	cfmakeraw(&t);
+	t.c_cc[VMIN] = 1;
+	t.c_cc[VTIME] = 0;
+
 	ret = cfsetispeed(&t, speed);
 	if (ret < 0)
 		return ret;
@@ -25,10 +29,6 @@ static int serial_conf(int fd, speed_t speed)
 	ret = cfsetospeed(&t, speed);
 	if (ret < 0)
 		return ret;
-
-	cfmakeraw(&t);
-	t.c_cc[VMIN] = 1;
-	t.c_cc[VTIME] = 0;
 
 	/* odd parity */
 	t.c_cflag |= PARENB | PARODD;
