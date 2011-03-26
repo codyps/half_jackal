@@ -100,29 +100,21 @@ static void enc_get(struct hj_pktc_enc *e, uint8_t i)
 	enc_isr_on();
 }
 
-#define enc_update(e, port, xport) do { \
-	uint8_t pa = (e).a;		\
-	uint8_t pb = (e).b;		\
-	uint8_t a = !(pa & (port));	\
-	uint8_t b = !(pb & (port));	\
-	if (pa & (xport)) {		\
-		if (a != b) {		\
-			(e).ct_p ++;	\
-			(e).ct_local ++;\
-		} else {		\
-			(e).ct_n ++;	\
-			(e).ct_local --;\
-		}			\
-	}				\
-	if (pb & (xport)) {		\
-		if (a == b) {		\
-			(e).ct_p ++;	\
-			(e).ct_local ++;\
-		} else {		\
-			(e).ct_n ++;	\
-			(e).ct_local --;\
-		}			\
-	}				\
+#define enc_update(e, pin, xpin) do {				\
+	uint8_t pa_ = (e).a;					\
+	uint8_t pb_ = (e).b;					\
+	bool a_ = !(pa_ & (pin));				\
+	bool b_ = !(pb_ & (pin));				\
+	bool da_ = pa_ & (xpin);				\
+	bool db_ = pb_ & (xpin);				\
+	if ((da_ && (a_ != b_)) || (db_ && (a_ == b_))) {	\
+		(e).ct_p ++;					\
+		(e).ct_local ++;				\
+	}							\
+	if ((da_ && (a_ == b_)) || (db_ && (a_ != b_))) {	\
+		(e).ct_n ++;					\
+		(e).ct_local --;				\
+	}							\
 } while(0)
 
 ISR(ENC_ISR)
