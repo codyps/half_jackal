@@ -97,6 +97,7 @@ static void enc_get(struct hj_pktc_enc *e, uint8_t i)
 	enc_isr_off();
 	e->p = htonl(ec_data[i].ct_p);
 	e->n = htonl(ec_data[i].ct_n);
+	e->l = htons(ec_data[i].ct_local);
 	enc_isr_on();
 }
 

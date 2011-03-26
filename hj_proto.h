@@ -22,6 +22,7 @@ struct hj_pkt_header {
 struct hj_pktc_enc {
 	uint32_t p;
 	uint32_t n;
+	int16_t  l;
 } __packed;
 
 struct hj_pktc_motor_info {
