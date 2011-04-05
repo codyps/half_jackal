@@ -6,8 +6,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <ctype.h>
+#include <netdb.h>
 
 static char const *optstring = ":f:";
+
+static char *lstrerror(int errnum)
+{
+	static char str[1024];
+	strerror_r(errnum, str, sizeof(str));
+	str[0] = tolower(str[0]);
+	return str;
+}
 
 int main(int argc, char **argv)
 {
@@ -46,11 +56,11 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	int unix_socket = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+	int unix_socket = socket(AF_UNIX, SOCK_RDM, 0);
 
 	if (unix_socket == -1) {
 		fprintf(stderr, "not able to create socket: %s\n",
-				strerror(errno));
+				lstrerror(errno));
 	}
 
 	return 0;
