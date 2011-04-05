@@ -99,6 +99,7 @@ enum hj_pkt_type {
 	HJA_PT_TIMEOUT = 'a',
 	HJA_PT_INFO,
 	HJA_PT_ERROR,
+
 	HJB_PT_SET_SPEED,
 	HJB_PT_REQ_INFO,
 	HJB_PT_PID_SAVE,

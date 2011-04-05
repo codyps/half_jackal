@@ -8,6 +8,8 @@
 int main(void)
 {
 	PS(,MAX);
+	PS(A,ERROR);
+	PS(,PID_K);
 	PS(A,INFO);
 	return 0;
 }

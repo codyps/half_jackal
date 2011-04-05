@@ -24,8 +24,7 @@ int hj_send_req_info(FILE *out)
 int hj_send_set_speed(FILE *sf, int16_t ml, int16_t mr)
 {
 	struct hjb_pkt_set_speed ss =
-		HJB_PKT_SET_SPEED_INITIALIZER(ml,
-				mr);
+		HJB_PKT_SET_SPEED_INITIALIZER(ml, mr);
 	return frame_send(sf, &ss, HJB_PL_SET_SPEED);
 }
 
