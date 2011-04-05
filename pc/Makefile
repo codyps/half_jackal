@@ -3,33 +3,35 @@ RM = rm -f
 
 TARGETS = ms pidk sizes us
 
-.SECONDEXPANSION:
 all_SRC = frame_async.c term.c hj_print.c hj_send.c
-ms_SRC = maintain_speed.c $(all_SRC)
-pidk_SRC = send_pid.c $(all_SRC)
-sizes_SRC = sizes.c $(all_SRC)
-us_SRC = unix.c $(all_SRC)
+obj = $(all_SRC:=.o)
 
-ms:   SRC = $(ms_SRC)
-pidk: SRC = $(pidk_SRC)
+.PHONY: all
+all: build 
+
+ms: maintain_speed.c.o
+pidk: send_pid.c.o
+sizes: sizes.c.o
+us: unix.c.o
 
 CFLAGS = -ggdb
 override CFLAGS += -Wall -pipe
-
-.PHONY: all
-all: build ;
+LDFLAGS = -Wl,--as-needed -O2
 
 .PHONY: rebuild
-rebuild: | clean build ;
+rebuild: | clean build 
 
 .PHONY: build
-build: $(TARGETS) ;
+build: $(TARGETS)
 
-$(TARGETS): $$($$@_SRC)
-	$(CC) $(CFLAGS) -MMD -o $@ $^
+%.c.o : %.c
+	$(CC) $(CFLAGS) -MMD -c -o $@ $<
+
+$(TARGETS) : $(obj) |
+	$(CC) $(LDFLAGS) -o $@ $^
 
 .PHONY: clean
 clean:
-	$(RM) $(TARGETS) *.d
+	$(RM) $(TARGETS) *.d *.o
 
 -include $(wildcard *.d)
