@@ -2,6 +2,8 @@
 #include <sys/types.h>
 #include <sys/un.h>
 
+#include <signal.h>
+
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,7 +28,7 @@ static char *lstrerror(int errnum)
 
 static void term_handler(int sig, siginfo_t *inf, void *d)
 {
-	
+	exit(3);
 }
 
 int main(int argc, char **argv)
@@ -72,7 +74,7 @@ int main(int argc, char **argv)
 	sigemptyset(&term_sa.sa_mask);
 	term_sa.sa_sigaction = term_handler;
 
-	ret = sigaction(SIG_TERM, &term_sa, NULL);
+	ret = sigaction(SIGTERM, &term_sa, NULL);
 	if (ret == -1) {
 		fprintf(stderr, "registering term handler failed.");
 		exit(2);
