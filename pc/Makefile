@@ -6,8 +6,11 @@ TARGETS = ms pidk sizes us
 all_SRC = frame_async.c term.c hj_print.c hj_send.c
 obj = $(all_SRC:=.o)
 
+srcdir = .
+VPATH = $(srcdir)
+
 .PHONY: all
-all: build 
+all: build
 
 ms: maintain_speed.c.o
 pidk: send_pid.c.o
@@ -15,7 +18,7 @@ sizes: sizes.c.o
 us: unix.c.o
 
 CFLAGS = -ggdb
-override CFLAGS += -Wall -pipe
+override CFLAGS += -Wall -pipe -I$(srcdir)/..
 LDFLAGS = -Wl,--as-needed -O2
 
 .PHONY: rebuild

@@ -5,9 +5,9 @@
 #include <errno.h>
 
 #include <arpa/inet.h>
+#include <frame/frame_proto.h>
 
 #include "crc.h"
-#include "../frame_proto.h"
 
 #define SEND_BYTE(out, c) do {						\
 	if ((c) == FRAME_START || (c) == FRAME_ESC || (c) == FRAME_RESET) {\
