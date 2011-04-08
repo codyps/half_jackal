@@ -2,8 +2,7 @@
 #define ERROR_FRAME_H_ 1
 
 #include <string.h>
-#include "muc/muc.h"
-#include "../hj_proto.h"
+#include <muc/muc.h>
 
 #define hj_send_error(errnum) \
 	__hj_send_error(__LINE__, __FILE__, strlen(__FILE__), errnum)

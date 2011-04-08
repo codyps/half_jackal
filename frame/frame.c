@@ -1,3 +1,11 @@
+#include <stdbool.h>
+#include <stdint.h>
+
+#include <util/crc.h>
+
+#include <frame/hw_proto.h>
+
+#if 0
 typedef struct frame_send_ctx {
 	uint16_t crc;
 	void (*putchar)(uint8_t c);
@@ -25,10 +33,23 @@ void frame_send_byte(frame_send_ctx *fc, uint8_t c)
 	_frame_send_byte(fc, c);
 }
 
+void frame_send_data(frame_send_ctx *fc, void *data, uint8_t len)
+{
+	uint8_t *d = data;
+	for (;;) {
+		if (len == 0)
+			break;
+		frame_send_byte(*d);
+		d++;
+		len--;
+	}
+}
+
 void frame_send_done(frame_send_ctx *fc)
 {
-	uint16_t crc = htole16(fc->crc);
+	uint16_t crc = fc->crc;
 
+	/* crc must be sent msb first */
 	_frame_send_byte(fc, crc >> 8);
 	_frame_send_byte(fc, crc & 0xff);
 
@@ -127,25 +148,47 @@ drop_packet:
 void frame_recv_error(frame_recv_ctx *fc)
 {
 	/* drop current packet. */
+	fc->started = false;
+	fc->esc = false;
+	fc->crc = FRAME_CRC_INIT;
+	fc->data[fc->head] = 0;
 }
 
 /* returns len */
 uint8_t frame_recv_start(frame_recv_ctx *fc)
 {
+	/* no packet */
+	if (fc->tail == fc->head)
+		return 0;
 
+	return fc->data[fc->tail];
 }
 
-uint8_t frame_recv_byte(frame_recv_ctx *fc)
+uint8_t frame_recv_u8(frame_recv_ctx *fc)
 {
+	/* return the next byte from the current packet and advance the tail */
+	/* ASSUMED: there exsists data in the current packet */
 
+	/* fc->tail always points to the packet len */
+	uint8_t nlen = fc->data[fc->tail] - 1;
+	uint8_t ntail = (fc->tail + 1) & (sizeof(fc->data) - 1);
+	uint8_t d = fc->data[ntail];
+
+	/* XXX: ordering appears unimportant, check? */
+	fc->tail = ntail;
+	fc->data[ntail] = nlen;
+
+	return d;
 }
 
 void frame_recv_done(frame_recv_ctx *fc)
 {
-
+	/* TODO: update tail to the start of the next packet */
+	fc->tail = (fc->tail + fc->data[fc->tail]) & (sizeof(fc->data) - 1);
 }
 
 void frame_recv_copy(frame_recv_ctx *fc, uint8_t *dst, uint8_t len)
 {
-
+	
 }
+#endif

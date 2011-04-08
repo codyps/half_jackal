@@ -2,7 +2,7 @@
 #define ADC_CONF_H_
 
 #include <stdint.h>
-#include "clock.h"
+#include <muc/clock.h>
 
 /* ADC Prescale calculation (2^n | uint n < 8 ) */
 /* From datasheet. */

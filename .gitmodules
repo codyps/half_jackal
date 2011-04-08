@@ -4,3 +4,9 @@
 [submodule "avr/penny"]
 	path = avr/penny
 	url = https://github.com/jmesmon/libpenny
+[submodule "muc"]
+	path = muc
+	url = git@github.com:jmesmon/libmuc.git
+[submodule "penny"]
+	path = penny
+	url = git@github.com:jmesmon/libpenny.git

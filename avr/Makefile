@@ -15,14 +15,14 @@ SRC  = main.c
 SRC += frame_async.c
 SRC += error_led.c
 SRC += error_frame.c
-SRC += muc/pid.c
-SRC += muc/adc.c
+SRC += ../muc/pid.c
+SRC += ../muc/adc.c
 
 ASRC =
 OPT = s
 
 srcdir = .
-VPATH = $(srcdir) $(srcdir)/muc
+VPATH = $(srcdir)
 
 # Name of this Makefile (used for "make depend").
 MAKEFILE = Makefile
@@ -43,7 +43,8 @@ VERSION := $(shell $(srcdir)/shortversion)
 CDEFS = -DVERSION="\"$(VERSION)\""
 
 # Place -I options here
-CINCS = -I./muc
+
+CINCS = -I$(srcdir)/../
 CLINK = -Wl,--as-needed
 
 CDEBUG = -g$(DEBUG)
@@ -53,9 +54,7 @@ CTUNING = -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums
 CFLAGS += $(CDEBUG) $(CDEFS) $(CINCS) -O$(OPT) $(CWARN) $(CSTANDARD)
 CFLAGS += $(CEXTRA) $(CLINK)
 
-
-#ASFLAGS = -Wa,-adhlns=$(<:.S=.lst),-gstabs 
-
+#ASFLAGS = -Wa,-adhlns=$(<:.S=.lst),-gstabs
 
 #Additional libraries.
 
@@ -65,7 +64,7 @@ PRINTF_LIB_MIN = -Wl,-u,vfprintf -lprintf_min
 # Floating point printf version (requires MATH_LIB = -lm below)
 PRINTF_LIB_FLOAT = -Wl,-u,vfprintf -lprintf_flt
 
-PRINTF_LIB = 
+PRINTF_LIB =
 
 # Minimalistic scanf version
 SCANF_LIB_MIN = -Wl,-u,vfscanf -lscanf_min
@@ -73,7 +72,7 @@ SCANF_LIB_MIN = -Wl,-u,vfscanf -lscanf_min
 # Floating point + %[ scanf version (requires MATH_LIB = -lm below)
 SCANF_LIB_FLOAT = -Wl,-u,vfscanf -lscanf_flt
 
-SCANF_LIB = 
+SCANF_LIB =
 
 #MATH_LIB = -lm
 

@@ -7,12 +7,13 @@
 #include <avr/interrupt.h>
 #include <util/crc16.h>
 
-#include "muc.h"
-#include "ds/circ_buf.h"
+#include <muc/muc.h>
+#include <penny/circ_buf.h>
+
+#include <frame/frame_proto.h>
 
 #include "error_led.h"
 
-#include "../frame_proto.h"
 /* 0x7f => 0x7d, 0x5f
  * 0x7e => 0x7d, 0x5e
  * 0x7d => 0x7d, 0x5d
