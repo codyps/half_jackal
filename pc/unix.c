@@ -12,11 +12,9 @@
 #include <ctype.h>
 #include <netdb.h>
 
-static char const *optstring = ":f:";
+#include <ev.h>
+#include <yajl.h>
 
-struct conn {
-	int fd;
-};
 
 static char *lstrerror(int errnum)
 {
@@ -31,6 +29,50 @@ static void term_handler(int sig, siginfo_t *inf, void *d)
 	exit(3);
 }
 
+static void unix_accept_cb(EV_P_ ev_io *w, int revents)
+{
+	/* TODO: handle events */
+}
+
+static void serial_cb(EV_P_ ev_io *w, int revents)
+{
+	/* TODO: handle events */
+}
+
+struct config {
+	uint8_t id;
+};
+
+int load_config(struct config *cfg, char *file_name)
+{
+	char data[8192];
+	char errbuf[1024];
+	FILE *f = fopen(file_name, "r");
+	if (!f)
+		return -1;
+
+	size_t rd = fread(data, 1, sizeof(data), f);
+
+	if (rd == 0 || ferror(f)) {
+		fprintf(stderr, "error reading file.\n");
+		return -2;
+	}
+
+	yajl_val node = yajl_tree_parse(data, errbuf, sizeof(errbuf));
+
+	if (!node) {
+		fprintf(stderr, "parse_error: ");
+		if (strlen(errbuf))
+			fprintf(stderr, " %s", errbuf);
+		else	
+			fprintf(stderr, "unknown error");
+		fprintf(stderr, "\n");
+		return -3;
+	}
+}
+
+
+static char const *optstring = ":f:";
 int main(int argc, char **argv)
 {
 	char *ufile = NULL;
@@ -101,6 +143,20 @@ int main(int argc, char **argv)
 		fprintf(stderr, "listen: %s\n",
 				lstrerror(errno));
 	}
+
+	/* TODO: open terminal */
+	int term_fd = -1;
+
+	struct ev_loop *loop = EV_DEFAULT;
+	ev_io unix_accept_watcher;
+	
+	/* TODO: fix EV_READ */
+	ev_io_init(&unix_accept_watcher, unix_accept_cb, unix_socket, EV_READ);
+	ev_io_start(loop, &unix_accept_watcher);
+
+	/* TODO: fix EV_READ */
+	ev_io_init(&serial_watcher, serial_cb, term_fd, EV_READ);
+	ev_io_start(loop, &serial_watcher);
 
 	for(;;) {
 		struct sockaddr_un sunp;

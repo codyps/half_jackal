@@ -47,7 +47,7 @@ struct encoder_con {
 	uint32_t ct_p;
 	uint32_t ct_n;
 	int16_t  ct_local;
-} static ec_data [] = {
+} static enc_data [] = {
 	ENC_IN(PC4, PC5), // PCINT12, PCINT13
 	ENC_IN(PC2, PC3)  // PCINT10, PCINT11
 };
@@ -76,8 +76,8 @@ static void enc_init(void)
 {
 	ENC_PCMSK = 0;
 
-	enc_init_1(ec_data[0]);
-	enc_init_1(ec_data[1]);
+	enc_init_1(enc_data[0]);
+	enc_init_1(enc_data[1]);
 
 	PCICR |= (1 << ENC_PCIE);
 }
@@ -95,9 +95,9 @@ static void enc_init(void)
 static void enc_get(struct hj_pktc_enc *e, uint8_t i)
 {
 	enc_isr_off();
-	e->p = htonl(ec_data[i].ct_p);
-	e->n = htonl(ec_data[i].ct_n);
-	e->l = htons(ec_data[i].ct_local);
+	e->p = htonl(enc_data[i].ct_p);
+	e->n = htonl(enc_data[i].ct_n);
+	e->l = htons(enc_data[i].ct_local);
 	enc_isr_on();
 }
 
@@ -125,8 +125,8 @@ ISR(ENC_ISR)
 	uint8_t pin = ENC_PIN;
 	uint8_t xpin = pin ^ old_pin;
 
-	enc_update(ec_data[0], pin, xpin);
-	enc_update(ec_data[1], pin, xpin);
+	enc_update(enc_data[0], pin, xpin);
+	enc_update(enc_data[1], pin, xpin);
 
 	old_pin = pin;
 }
@@ -192,8 +192,8 @@ static void pid_tmr_init(void)
 }
 
 #define pid_step(m_idx) do {							\
-	update_pwr(m_idx, pid_update(&mpid[m_idx], ec_data[m_idx].ct_local));	\
-	ec_data[m_idx].ct_local = 0;						\
+	update_pwr(m_idx, pid_update(&mpid[m_idx], enc_data[m_idx].ct_local));	\
+	enc_data[m_idx].ct_local = 0;						\
 } while(0)
 
 ISR(TIMER2_COMPA_vect)

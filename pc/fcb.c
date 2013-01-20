@@ -23,7 +23,7 @@ typedef struct fcb_pkt {
 	uint8_t data[];
 } fcb_pkt;
 
-#define pkt_from_list(list) container_of(list, struct fcb_pkt, l)
+#define pkt_from_list(list) container_of(list, struct fcb_pkt, list)
 
 struct fcb_ctx_in {
 	bool start;
